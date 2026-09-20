@@ -92,6 +92,31 @@ async function main() {
   await s1;
   expect(stopped.nodes.length === 0 || stopped.nodes.length <= total, 'dispose cancels in-flight appends (got ' + stopped.nodes.length + ')');
 
+  function visiblePage(root, pages) {
+    var bestN = 0, bestOverlap = -1;
+    pages.forEach(function (p) {
+      var overlap = Math.min(root.bottom, p.bottom) - Math.max(root.top, p.top);
+      if (overlap > bestOverlap) {
+        bestOverlap = overlap;
+        bestN = p.page;
+      }
+    });
+    return bestN;
+  }
+  var pages = [
+    { page: 1, top: 0, bottom: 80 },
+    { page: 2, top: 90, bottom: 170 },
+    { page: 3, top: 180, bottom: 260 }
+  ];
+  expect(visiblePage({ top: 0, bottom: 100 }, pages) === 1, 'viewport at top picks page 1');
+  expect(visiblePage({ top: 200, bottom: 300 }, pages) === 3, 'viewport scrolled down picks page 3');
+
+  function thumbTarget(rail, btn) {
+    return (btn.top + btn.height / 2) - (rail.top + rail.height / 2);
+  }
+  expect(Math.abs(thumbTarget({ top: 0, height: 200 }, { top: 0, height: 40 }) + 80) < 0.1, 'first thumb would scroll rail down by centering delta');
+  expect(Math.abs(thumbTarget({ top: 0, height: 200 }, { top: 80, height: 40 })) < 0.1, 'centered thumb needs no extra scroll');
+
   if (process.exitCode) {
     console.error('page_stack_gen failed');
     process.exit(1);

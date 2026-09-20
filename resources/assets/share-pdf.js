@@ -1,4 +1,4 @@
-/*! custom-viewer_pdf 0.2.6 share PDF viewer (plugin; host=custom-digital_product) */
+/*! custom-viewer_pdf 0.2.7 share PDF viewer (plugin; host=custom-digital_product) */
 (function () {
   if (window.__cdpPdf) return;
 
@@ -41,6 +41,7 @@
     thumbGen: 0,
     rebuildTimer: 0
   };
+  var _syncRaf = 0;
 
   function bumpRenderGens() {
     state.stackGen = (state.stackGen || 0) + 1;
@@ -48,6 +49,10 @@
     if (state.rebuildTimer) {
       try { clearTimeout(state.rebuildTimer); } catch (eT) {}
       state.rebuildTimer = 0;
+    }
+    if (_syncRaf) {
+      try { cancelAnimationFrame(_syncRaf); } catch (eR) {}
+      _syncRaf = 0;
     }
     if (state._pageObs) {
       try { state._pageObs.disconnect(); } catch (eO) {}
@@ -316,27 +321,56 @@
 
 
 
+  function requestSyncFromScroll() {
+    if (_syncRaf) return;
+    var raf = window.requestAnimationFrame || function (fn) { return setTimeout(fn, 16); };
+    _syncRaf = raf(function () {
+      _syncRaf = 0;
+      syncPageFromScroller();
+    });
+  }
+
+  function visiblePageFromScroller(scroller, pageEls) {
+    if (!scroller || !pageEls || !pageEls.length) return 0;
+    var root = scroller.getBoundingClientRect();
+    if (!root.height) return 0;
+    var bestN = 0;
+    var bestOverlap = -1;
+    for (var i = 0; i < pageEls.length; i++) {
+      var el = pageEls[i];
+      if (!el || !el.getBoundingClientRect) continue;
+      var r = el.getBoundingClientRect();
+      var overlap = Math.min(root.bottom, r.bottom) - Math.max(root.top, r.top);
+      if (overlap > bestOverlap) {
+        bestOverlap = overlap;
+        bestN = parseInt(el.getAttribute('data-page') || String(i + 1), 10) || (i + 1);
+      }
+    }
+    return bestN;
+  }
+
+  function syncPageFromScroller() {
+    if (state.disposed || !state.ui || !state.ui.scroller || !state.ui.pageEls || !state.ui.pageEls.length) return;
+    var n = visiblePageFromScroller(state.ui.scroller, state.ui.pageEls);
+    if (!n || n === state.page) return;
+    state.page = n;
+    if (state.ui.pageLabel) state.ui.pageLabel.textContent = state.page + ' / ' + state.pageCount;
+    if (typeof state.ui.paintPageActive === 'function') {
+      try { state.ui.paintPageActive(); } catch (e2) {}
+    }
+  }
+
   function bindPageObserver() {
-    if (!state.ui || !state.ui.scroller || !state.ui.pageEls) return;
+    if (!state.ui || !state.ui.scroller) return;
     if (state._pageObs) {
       try { state._pageObs.disconnect(); } catch (e) {}
+      state._pageObs = null;
     }
-    var obs = new IntersectionObserver(function (entries) {
-      var best = null, ratio = 0;
-      entries.forEach(function (en) {
-        if (en.intersectionRatio > ratio) { ratio = en.intersectionRatio; best = en.target; }
-      });
-      if (!best) return;
-      var n = parseInt(best.getAttribute('data-page') || '0', 10);
-      if (!n || n === state.page) return;
-      state.page = n;
-      if (state.ui.pageLabel) state.ui.pageLabel.textContent = state.page + ' / ' + state.pageCount;
-      if (typeof state.ui.paintPageActive === 'function') {
-        try { state.ui.paintPageActive(); } catch (e2) {}
-      }
-    }, { root: state.ui.scroller, threshold: [0.4, 0.6, 0.8] });
-    state.ui.pageEls.forEach(function (el) { obs.observe(el); });
-    state._pageObs = obs;
+    if (!state.ui._scrollSyncBound) {
+      state.ui.scroller.addEventListener('scroll', requestSyncFromScroll, { passive: true });
+      state.ui._scrollSyncBound = true;
+    }
+    syncPageFromScroller();
   }
 
   function buildContinuousStack() {
@@ -390,6 +424,7 @@
         wrap.appendChild(tag);
         scroller.appendChild(wrap);
         els.push(wrap);
+        requestSyncFromScroll();
         return page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
       }).then(function () {
         if (!stillCurrent()) return;
@@ -685,17 +720,26 @@
     railUp.addEventListener('click', function (e) { e.preventDefault(); scrollRailBy(-1); });
     railDown.addEventListener('click', function (e) { e.preventDefault(); scrollRailBy(1); });
     var pageThumbs = document.createElement('div');
+    pageThumbs.setAttribute('data-cdp-page-thumbs', '1');
     pageThumbs.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px;overflow-x:hidden;overflow-y:auto;scrollbar-width:thin;background:rgba(17,24,39,.28);border-radius:10px;flex:1;min-height:0;height:100%;max-height:100%;box-sizing:border-box;';
     var pageThumbBtns = [];
+    function scrollThumbsToActive() {
+      var btn = pageThumbBtns[state.page - 1];
+      if (!btn || !pageThumbs) return;
+      var railBox = pageThumbs.getBoundingClientRect();
+      var btnBox = btn.getBoundingClientRect();
+      if (!railBox.height || !btnBox.height) return;
+      var delta = (btnBox.top + btnBox.height / 2) - (railBox.top + railBox.height / 2);
+      if (Math.abs(delta) < 4) return;
+      pageThumbs.scrollTop += delta;
+    }
     function paintPageActive() {
       pageThumbBtns.forEach(function (btn, i) {
         var on = (i + 1) === state.page;
         btn.style.outline = on ? '2px solid #60a5fa' : '2px solid transparent';
         btn.style.boxShadow = on ? '0 8px 20px rgba(96,165,250,.35)' : '0 2px 8px rgba(0,0,0,.2)';
-        if (on) {
-          try { btn.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (eSv) {}
-        }
       });
+      scrollThumbsToActive();
     }
     function buildPageThumbs() {
       var gen = (state.thumbGen = (state.thumbGen || 0) + 1);
@@ -796,6 +840,7 @@
     var scroller = document.createElement('div');
     scroller.setAttribute('data-cdp-pdf-scroller', '1');
     scroller.style.cssText = 'flex:1;min-width:0;min-height:0;overflow-x:hidden;overflow-y:scroll;display:flex;flex-direction:column;align-items:center;';
+    scroller.addEventListener('scroll', requestSyncFromScroll, { passive: true });
     var pageWrap = document.createElement('div');
     pageWrap.className = 'cdp-pdf-page';
     var canvas = document.createElement('canvas');
@@ -927,7 +972,7 @@
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
     state.modal = overlay;
-    state.ui = { status: status, canvas: canvas, pageLabel: pageLabel, paintThumbs: paintThumbs, paintPageActive: paintPageActive, buildPageThumbs: buildPageThumbs, panel: panel, pageWrap: pageWrap, textLayer: textLayer, stage: stage, scroller: scroller };
+    state.ui = { status: status, canvas: canvas, pageLabel: pageLabel, paintThumbs: paintThumbs, paintPageActive: paintPageActive, buildPageThumbs: buildPageThumbs, panel: panel, pageWrap: pageWrap, textLayer: textLayer, stage: stage, scroller: scroller, pageThumbs: pageThumbs, _scrollSyncBound: true };
     document.addEventListener('fullscreenchange', function () {
       var on = !!(document.fullscreenElement || document.webkitFullscreenElement);
       fsBtn.innerHTML = on ? FS_OUT : FS_IN;

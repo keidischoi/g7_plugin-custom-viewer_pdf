@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.7] - 2026-09-20
+
+### Fixed
+- Left page thumbnails follow the current page as the main PDF scroller moves (rail-only scroll, not `scrollIntoView`)
+
 ## [0.2.6] - 2026-09-20
 
 ### Fixed
