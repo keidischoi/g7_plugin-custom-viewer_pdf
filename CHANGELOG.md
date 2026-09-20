@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.6] - 2026-09-20
+
+### Fixed
+- Page stack and left page-thumbnail rail no longer keep appending when zoom, file switch, or a slow render overlaps the previous build
+- Cap both lists at `numPages` and cancel in-flight `getPage` work with a generation token
+- Debounce zoom rebuilds; page thumbs jump with `turnPage` instead of painting a detached canvas
+
 ## [0.1.11] - 2026-09-19
 
 ### Fixed

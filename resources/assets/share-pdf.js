@@ -1,4 +1,4 @@
-/*! custom-viewer_pdf 0.2.2 share PDF viewer (plugin; host=custom-digital_product) */
+/*! custom-viewer_pdf 0.2.6 share PDF viewer (plugin; host=custom-digital_product) */
 (function () {
   if (window.__cdpPdf) return;
 
@@ -36,8 +36,36 @@
     pendingPage: null,
     disposed: true,
     ui: null,
-    raf: 0
+    raf: 0,
+    stackGen: 0,
+    thumbGen: 0,
+    rebuildTimer: 0
   };
+
+  function bumpRenderGens() {
+    state.stackGen = (state.stackGen || 0) + 1;
+    state.thumbGen = (state.thumbGen || 0) + 1;
+    if (state.rebuildTimer) {
+      try { clearTimeout(state.rebuildTimer); } catch (eT) {}
+      state.rebuildTimer = 0;
+    }
+    if (state._pageObs) {
+      try { state._pageObs.disconnect(); } catch (eO) {}
+      state._pageObs = null;
+    }
+  }
+
+  function scheduleRebuild() {
+    if (state.rebuildTimer) {
+      try { clearTimeout(state.rebuildTimer); } catch (eT) {}
+    }
+    state.rebuildTimer = setTimeout(function () {
+      state.rebuildTimer = 0;
+      if (state.disposed) return;
+      if (typeof state._rebuildStack === 'function') state._rebuildStack();
+      else if (state.pdfDoc) renderPage(state.page);
+    }, 140);
+  }
 
   function extOf(name) {
     var m = String(name || '').toLowerCase().match(/\.([a-z0-9]+)$/);
@@ -256,6 +284,7 @@
 
   function closeModal() {
     state.disposed = true;
+    bumpRenderGens();
     state.pdfDoc = null;
     state.rendering = false;
     state.pendingPage = null;
@@ -312,8 +341,13 @@
 
   function buildContinuousStack() {
     if (!state.pdfDoc || !state.ui || !state.ui.scroller) return;
+    var gen = (state.stackGen = (state.stackGen || 0) + 1);
     var scroller = state.ui.scroller;
     var scale = state.scale || 1.15;
+    if (state._pageObs) {
+      try { state._pageObs.disconnect(); } catch (eO) {}
+      state._pageObs = null;
+    }
     try {
       var stageEl = state.ui.stage;
       if (stageEl) {
@@ -326,15 +360,20 @@
     state.ui.pageEls = els;
     var total = state.pdfDoc.numPages || 1;
     state.pageCount = total;
-    state.page = state.page || 1;
+    state.page = Math.max(1, Math.min(state.page || 1, total));
     if (state.ui && state.ui.pageLabel) state.ui.pageLabel.textContent = state.page + ' / ' + total;
+    function stillCurrent() {
+      return !state.disposed && gen === state.stackGen && state.ui && state.ui.scroller === scroller;
+    }
     function addPage(i) {
-      if (state.disposed) return;
-      if (i > total) {
+      if (!stillCurrent()) return;
+      if (i > total || els.length >= total) {
         bindPageObserver();
         return;
       }
       state.pdfDoc.getPage(i).then(function (page) {
+        if (!stillCurrent()) return;
+        if (els.length >= total) return;
         var vp = page.getViewport({ scale: scale });
         var wrap = document.createElement('div');
         wrap.className = 'cdp-pdf-page';
@@ -352,7 +391,13 @@
         scroller.appendChild(wrap);
         els.push(wrap);
         return page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-      }).then(function () { addPage(i + 1); }).catch(function () { addPage(i + 1); });
+      }).then(function () {
+        if (!stillCurrent()) return;
+        addPage(i + 1);
+      }).catch(function () {
+        if (!stillCurrent()) return;
+        addPage(i + 1);
+      });
     }
     state._rebuildStack = buildContinuousStack;
     addPage(1);
@@ -481,6 +526,7 @@
     }
     setStatus((file.file_name || 'PDF') + ' 불러오는 중…');
     state.disposed = false;
+    bumpRenderGens();
     showIframeFallback(url);
     setStatus(file.file_name || 'PDF');
     loadPdfJs().then(function (pdfjsLib) {
@@ -538,7 +584,7 @@
         e.preventDefault();
         if (e.deltaY > 0) state.scale = Math.max(0.5, state.scale - 0.1);
         else state.scale = Math.min(3, state.scale + 0.1);
-        if (typeof state._rebuildStack === 'function') state._rebuildStack();
+        if (typeof scheduleRebuild === 'function') scheduleRebuild();
         else renderPage(state.page);
         return;
       }
@@ -639,7 +685,7 @@
     railUp.addEventListener('click', function (e) { e.preventDefault(); scrollRailBy(-1); });
     railDown.addEventListener('click', function (e) { e.preventDefault(); scrollRailBy(1); });
     var pageThumbs = document.createElement('div');
-    pageThumbs.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px;overflow-x:hidden;overflow-y:auto;scrollbar-width:thin;background:rgba(17,24,39,.28);border-radius:10px;max-height:100%;';
+    pageThumbs.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px;overflow-x:hidden;overflow-y:auto;scrollbar-width:thin;background:rgba(17,24,39,.28);border-radius:10px;flex:1;min-height:0;height:100%;max-height:100%;box-sizing:border-box;';
     var pageThumbBtns = [];
     function paintPageActive() {
       pageThumbBtns.forEach(function (btn, i) {
@@ -652,16 +698,25 @@
       });
     }
     function buildPageThumbs() {
+      var gen = (state.thumbGen = (state.thumbGen || 0) + 1);
       pageThumbs.innerHTML = '';
       pageThumbBtns = [];
       if (!state.pdfDoc) return;
       var total = state.pdfDoc.numPages || 1;
       var i = 1;
+      function stillCurrent() {
+        return !state.disposed && gen === state.thumbGen;
+      }
       function next() {
-        if (i > total || state.disposed) return;
+        if (!stillCurrent()) return;
+        if (i > total || pageThumbBtns.length >= total) {
+          paintPageActive();
+          return;
+        }
         var pageNo = i;
         i += 1;
         state.pdfDoc.getPage(pageNo).then(function (pg) {
+          if (!stillCurrent()) return null;
           var vp = pg.getViewport({ scale: 0.18 });
           var c = document.createElement('canvas');
           c.width = vp.width;
@@ -669,22 +724,26 @@
           c.style.cssText = 'width:88px;height:auto;display:block;background:#fff';
           return pg.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise.then(function () { return c; });
         }).then(function (c) {
+          if (!c || !stillCurrent()) return;
+          if (pageThumbBtns.length >= total) return;
           var btn = document.createElement('button');
           btn.type = 'button';
           btn.title = '페이지 ' + pageNo;
-          btn.style.cssText = 'padding:0;border:0;border-radius:8px;background:#fff;cursor:pointer;overflow:hidden';
+          btn.style.cssText = 'padding:0;border:0;border-radius:8px;background:#fff;cursor:pointer;overflow:hidden;flex:0 0 auto';
           btn.appendChild(c);
           btn.style.position = 'relative';
           var cap = document.createElement('span');
           cap.textContent = String(pageNo);
           cap.style.cssText = 'position:absolute;left:4px;bottom:2px;font-size:10px;color:#111;background:rgba(255,255,255,.8);padding:0 3px;border-radius:3px;line-height:1.2';
           btn.appendChild(cap);
-          btn.addEventListener('click', function () { renderPage(pageNo); });
+          btn.addEventListener('click', function () { turnPage(pageNo); });
           pageThumbs.appendChild(btn);
           pageThumbBtns.push(btn);
-          paintPageActive();
           next();
-        }).catch(function () { next(); });
+        }).catch(function () {
+          if (!stillCurrent()) return;
+          next();
+        });
       }
       next();
     }
@@ -754,7 +813,7 @@
       scroller.scrollTop += (e.deltaY > 0 ? step : -step);
     }, { passive: false });
     var pageRail = document.createElement('div');
-    pageRail.style.cssText = 'position:absolute;left:10px;top:12px;bottom:12px;width:96px;z-index:4;display:flex;align-items:stretch;pointer-events:auto;opacity:.45;transition:opacity .2s ease';
+    pageRail.style.cssText = 'position:absolute;left:10px;top:12px;bottom:12px;width:96px;z-index:4;display:flex;align-items:stretch;overflow:hidden;pointer-events:auto;opacity:.45;transition:opacity .2s ease';
     pageRail.appendChild(pageThumbs);
     stage.appendChild(pageRail);
     var MAG_MINUS = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/><path d="M8 11h6"/></svg>';
@@ -837,8 +896,8 @@
     }
     zoomBox.appendChild(pill(PRINT_ICON, '인쇄', printCurrent));
     zoomBox.appendChild(pill(DL_ICON, '다운로드', downloadCurrent));
-    zoomBox.appendChild(pill(MAG_PLUS, '확대', function () { state.scale = Math.min(3, state.scale + 0.15); if (state._rebuildStack) state._rebuildStack(); else renderPage(state.page); }));
-    zoomBox.appendChild(pill(MAG_MINUS, '축소', function () { state.scale = Math.max(0.5, state.scale - 0.15); if (state._rebuildStack) state._rebuildStack(); else renderPage(state.page); }));
+    zoomBox.appendChild(pill(MAG_PLUS, '확대', function () { state.scale = Math.min(3, state.scale + 0.15); scheduleRebuild(); }));
+    zoomBox.appendChild(pill(MAG_MINUS, '축소', function () { state.scale = Math.max(0.5, state.scale - 0.15); scheduleRebuild(); }));
     function fadeOn(on) {
       pageNav.style.opacity = on ? '1' : '.38';
       zoomBox.style.opacity = on ? '1' : '.38';
