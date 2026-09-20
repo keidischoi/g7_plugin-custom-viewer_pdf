@@ -1,0 +1,22 @@
+{
+  "name": "PDF 뷰어 플러그인",
+  "description": "디지털 상품 공유/상세에서 PDF를 미리보기합니다.",
+  "settings": {
+    "page_title": "PDF 뷰어 설정",
+    "page_description": "배지, 버튼, 스크롤 양을 설정합니다.",
+    "notice": "저장 후 공유 페이지를 새로고침하면 반영됩니다.",
+    "guide_title": "안내",
+    "guide_item_1": "휠 스크롤 양(px)을 줄이면 한 번에 덜 움직입니다.",
+    "guide_item_2": "버튼 표시를 끄면 뷰어에서 해당 아이콘이 숨겨집니다.",
+    "badge_icon": { "label": "배지 아이콘", "hint": "이미지 위 배지에 표시할 이모지" },
+    "badge_label": { "label": "배지 글자", "hint": "마우스 오버 시 표시되는 글자" },
+    "default_scale": { "label": "기본 배율", "hint": "0.5 ~ 3.0" },
+    "wheel_scroll_px": { "label": "휠 스크롤 양 (px)", "hint": "작을수록 천천히 스크롤됩니다" },
+    "show_print": { "label": "인쇄 버튼", "hint": "뷰어에 인쇄 아이콘 표시" },
+    "show_download": { "label": "다운로드 버튼", "hint": "뷰어에 다운로드 아이콘 표시" },
+    "show_zoom": { "label": "확대/축소", "hint": "돋보기 버튼 표시" },
+    "show_page_thumbs": { "label": "페이지 미리보기", "hint": "본문 왼쪽 페이지 썸네일" },
+    "show_file_rail": { "label": "파일 목록 슬라이더", "hint": "왼쪽 파일 레일" },
+    "wheel_turns_page": { "label": "휠로 페이지 단위 이동", "hint": "켜면 한 장씩, 끄면 이어진 스크롤" }
+  }
+}

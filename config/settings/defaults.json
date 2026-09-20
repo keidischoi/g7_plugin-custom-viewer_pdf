@@ -1,0 +1,30 @@
+{
+  "_meta": {
+    "version": "1.0.0",
+    "description": "PDF 뷰어 플러그인 환경설정"
+  },
+  "defaults": {
+    "badge_icon": "📄",
+    "badge_label": "PDF",
+    "default_scale": 1.15,
+    "wheel_scroll_px": 140,
+    "show_print": true,
+    "show_download": true,
+    "show_zoom": true,
+    "show_page_thumbs": true,
+    "show_file_rail": true,
+    "wheel_turns_page": false
+  },
+  "frontend_schema": {
+    "badge_icon": { "expose": true },
+    "badge_label": { "expose": true },
+    "default_scale": { "expose": true },
+    "wheel_scroll_px": { "expose": true },
+    "show_print": { "expose": true },
+    "show_download": { "expose": true },
+    "show_zoom": { "expose": true },
+    "show_page_thumbs": { "expose": true },
+    "show_file_rail": { "expose": true },
+    "wheel_turns_page": { "expose": true }
+  }
+}

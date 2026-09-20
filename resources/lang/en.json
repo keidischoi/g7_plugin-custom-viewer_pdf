@@ -1,0 +1,22 @@
+{
+  "name": "PDF Viewer Plugin",
+  "description": "Preview PDF files on digital product share pages.",
+  "settings": {
+    "page_title": "PDF Viewer Settings",
+    "page_description": "Badge, buttons, and scroll amount.",
+    "notice": "Refresh the share page after saving.",
+    "guide_title": "Guide",
+    "guide_item_1": "Lower wheel scroll px for slower scrolling.",
+    "guide_item_2": "Toggle buttons to show or hide viewer controls.",
+    "badge_icon": { "label": "Badge icon", "hint": "Emoji on the image badge" },
+    "badge_label": { "label": "Badge label", "hint": "Text shown on hover" },
+    "default_scale": { "label": "Default scale", "hint": "0.5 to 3.0" },
+    "wheel_scroll_px": { "label": "Wheel scroll (px)", "hint": "Smaller is slower" },
+    "show_print": { "label": "Print button", "hint": "" },
+    "show_download": { "label": "Download button", "hint": "" },
+    "show_zoom": { "label": "Zoom buttons", "hint": "" },
+    "show_page_thumbs": { "label": "Page thumbnails", "hint": "" },
+    "show_file_rail": { "label": "File list rail", "hint": "" },
+    "wheel_turns_page": { "label": "Wheel changes page", "hint": "On: one page at a time" }
+  }
+}

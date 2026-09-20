@@ -1,0 +1,82 @@
+{
+  "version": "1.0.0",
+  "meta": {
+    "title": "$t:settings.page_title",
+    "description": "$t:settings.page_description"
+  },
+  "pageConfig": {
+    "notice": "$t:settings.notice",
+    "guide": {
+      "title": "$t:settings.guide_title",
+      "items": [
+        "$t:settings.guide_item_1",
+        "$t:settings.guide_item_2"
+      ]
+    }
+  },
+  "schema": {
+    "badge_icon": {
+      "type": "string",
+      "default": "📄",
+      "label": "$t:settings.badge_icon.label",
+      "hint": "$t:settings.badge_icon.hint"
+    },
+    "badge_label": {
+      "type": "string",
+      "default": "PDF",
+      "label": "$t:settings.badge_label.label",
+      "hint": "$t:settings.badge_label.hint"
+    },
+    "default_scale": {
+      "type": "number",
+      "default": 1.15,
+      "label": "$t:settings.default_scale.label",
+      "hint": "$t:settings.default_scale.hint"
+    },
+    "wheel_scroll_px": {
+      "type": "integer",
+      "default": 140,
+      "label": "$t:settings.wheel_scroll_px.label",
+      "hint": "$t:settings.wheel_scroll_px.hint"
+    },
+    "show_print": {
+      "type": "boolean",
+      "default": true,
+      "label": "$t:settings.show_print.label",
+      "hint": "$t:settings.show_print.hint"
+    },
+    "show_download": {
+      "type": "boolean",
+      "default": true,
+      "label": "$t:settings.show_download.label",
+      "hint": "$t:settings.show_download.hint"
+    },
+    "show_zoom": {
+      "type": "boolean",
+      "default": true,
+      "label": "$t:settings.show_zoom.label",
+      "hint": "$t:settings.show_zoom.hint"
+    },
+    "show_page_thumbs": {
+      "type": "boolean",
+      "default": true,
+      "label": "$t:settings.show_page_thumbs.label",
+      "hint": "$t:settings.show_page_thumbs.hint"
+    },
+    "show_file_rail": {
+      "type": "boolean",
+      "default": true,
+      "label": "$t:settings.show_file_rail.label",
+      "hint": "$t:settings.show_file_rail.hint"
+    },
+    "wheel_turns_page": {
+      "type": "boolean",
+      "default": false,
+      "label": "$t:settings.wheel_turns_page.label",
+      "hint": "$t:settings.wheel_turns_page.hint"
+    }
+  },
+  "components": [],
+  "layout_name": "custom-viewer_pdf.plugin_settings",
+  "name": "custom-viewer_pdf.plugin_settings"
+}

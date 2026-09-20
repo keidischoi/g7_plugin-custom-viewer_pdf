@@ -1,0 +1,20 @@
+{
+  "name": "plugins/custom-viewer_pdf",
+  "description": "G7 Event-Hook PDF viewer plugin for custom-digital_product",
+  "type": "library",
+  "license": "MIT",
+  "version": "0.1.17",
+  "authors": [
+    {
+      "name": "keidischoi"
+    }
+  ],
+  "require": {
+    "php": "^8.2"
+  },
+  "autoload": {
+    "psr-4": {
+      "Plugins\\Custom\\ViewerPdf\\": ["src/", "./"]
+    }
+  }
+}
