@@ -1,4 +1,4 @@
-/*! custom-viewer_pdf 0.2.16 share PDF viewer (plugin; host=custom-digital_product) */
+/*! custom-viewer_pdf 0.2.17 share PDF viewer (plugin; host=custom-digital_product) */
 (function () {
   function badgeRank(el) {
     var id = '';
@@ -165,6 +165,8 @@
     page: 1,
     pageCount: 0,
     scale: (function(){ try { return Number(pdfCfg().default_scale) || 1.15; } catch(e){ return 1.15; } })(),
+    fitScale: 0,
+    userScaled: false,
     pdfDoc: null,
     rendering: false,
     pendingPage: null,
@@ -173,7 +175,11 @@
     raf: 0,
     stackGen: 0,
     thumbGen: 0,
-    rebuildTimer: 0
+    rebuildTimer: 0,
+    pageRenderFlags: null,
+    thumbRenderFlags: null,
+    _lazyScrollBound: false,
+    _thumbLazyScrollBound: false
   };
   var _syncRaf = 0;
 
@@ -603,11 +609,180 @@
     syncPageFromScroller();
   }
 
+  function scrollerAvailSize(scroller) {
+    if (!scroller) return { w: 600, h: 500 };
+    var w = scroller.clientWidth || 0;
+    var h = scroller.clientHeight || 0;
+    try {
+      var r = scroller.getBoundingClientRect();
+      if (!w) w = r.width || 0;
+      if (!h) h = r.height || 0;
+    } catch (eSz) {}
+    return { w: Math.max(80, w), h: Math.max(80, h) };
+  }
+
+  function computeFitScaleForPage(page, scroller) {
+    var base = page.getViewport({ scale: 1 });
+    var sz = scrollerAvailSize(scroller);
+    // Leave room for left thumb rail overlay + page margin so the page sits inside the red-box stage.
+    var padX = 120;
+    var padY = 48;
+    var availW = Math.max(60, sz.w - padX);
+    var availH = Math.max(60, sz.h - padY);
+    var sx = availW / Math.max(1, base.width);
+    var sy = availH / Math.max(1, base.height);
+    var fit = Math.min(sx, sy);
+    if (!isFinite(fit) || fit <= 0) fit = 1;
+    return Math.max(0.35, Math.min(fit, 2.8));
+  }
+
+  function markPageLoading(wrap, pageNo, total) {
+    if (!wrap) return;
+    var existing = wrap.querySelector('[data-cdp-pdf-loading]');
+    if (existing) return;
+    var tip = document.createElement('div');
+    tip.setAttribute('data-cdp-pdf-loading', '1');
+    tip.textContent = '페이지 로드중';
+    tip.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;color:#6b7280;background:rgba(249,250,251,.92);z-index:1;pointer-events:none;';
+    wrap.appendChild(tip);
+    var tag = wrap.querySelector('[data-cdp-pdf-page-tag]');
+    if (!tag) {
+      tag = document.createElement('div');
+      tag.setAttribute('data-cdp-pdf-page-tag', '1');
+      tag.textContent = pageNo + ' / ' + total;
+      tag.style.cssText = 'position:absolute;right:8px;bottom:8px;font-size:11px;color:#374151;background:rgba(255,255,255,.88);padding:2px 6px;border-radius:4px;pointer-events:none;z-index:2;';
+      wrap.appendChild(tag);
+    }
+  }
+
+  function clearPageLoading(wrap) {
+    if (!wrap) return;
+    var tip = wrap.querySelector('[data-cdp-pdf-loading]');
+    if (tip && tip.parentNode) tip.parentNode.removeChild(tip);
+  }
+
+  function visiblePageRange(scroller, pageEls, buffer) {
+    buffer = buffer == null ? 1 : buffer;
+    if (!scroller || !pageEls || !pageEls.length) return { from: 1, to: 1 };
+    var root = scroller.getBoundingClientRect();
+    var from = -1;
+    var to = -1;
+    for (var i = 0; i < pageEls.length; i++) {
+      var el = pageEls[i];
+      if (!el || !el.getBoundingClientRect) continue;
+      var r = el.getBoundingClientRect();
+      var overlap = Math.min(root.bottom, r.bottom) - Math.max(root.top, r.top);
+      // also treat near-viewport (partially off but within buffer heights) as needed
+      var near = (r.bottom >= root.top - root.height * 0.35) && (r.top <= root.bottom + root.height * 0.35);
+      if (overlap > 0 || near) {
+        var n = parseInt(el.getAttribute('data-page') || String(i + 1), 10) || (i + 1);
+        if (from < 0) from = n;
+        to = n;
+      }
+    }
+    if (from < 0) {
+      // fallback: estimate from scrollTop / first page height
+      var first = pageEls[0];
+      var ph = (first && first.offsetHeight) ? first.offsetHeight : 800;
+      var idx = Math.floor((scroller.scrollTop || 0) / Math.max(1, ph + 28)) + 1;
+      from = Math.max(1, idx - buffer);
+      to = Math.min(pageEls.length, idx + buffer);
+      return { from: from, to: to };
+    }
+    from = Math.max(1, from - buffer);
+    to = Math.min(pageEls.length, to + buffer);
+    return { from: from, to: to };
+  }
+
+  function ensurePagesRendered() {
+    if (state.disposed || !state.pdfDoc || !state.ui || !state.ui.scroller || !state.ui.pageEls) return;
+    var gen = state.stackGen;
+    var scroller = state.ui.scroller;
+    var els = state.ui.pageEls;
+    var total = els.length;
+    var scale = state.scale || 1.15;
+    var flags = state.pageRenderFlags || (state.pageRenderFlags = {});
+    var range = visiblePageRange(scroller, els, 1);
+    // Always include current page
+    var cur = state.page || 1;
+    range.from = Math.min(range.from, cur);
+    range.to = Math.max(range.to, cur);
+
+    function stillCurrent() {
+      return !state.disposed && gen === state.stackGen && state.ui && state.ui.scroller === scroller;
+    }
+
+    function renderOne(pageNo) {
+      if (!stillCurrent()) return Promise.resolve();
+      if (flags[pageNo] === 'done' || flags[pageNo] === 'busy') return Promise.resolve();
+      var wrap = els[pageNo - 1];
+      if (!wrap) return Promise.resolve();
+      flags[pageNo] = 'busy';
+      markPageLoading(wrap, pageNo, total);
+      return state.pdfDoc.getPage(pageNo).then(function (page) {
+        if (!stillCurrent()) return null;
+        var vp = page.getViewport({ scale: scale });
+        wrap.style.width = vp.width + 'px';
+        wrap.style.height = vp.height + 'px';
+        var canvas = wrap.querySelector('canvas');
+        if (!canvas) {
+          canvas = document.createElement('canvas');
+          canvas.style.cssText = 'display:block;background:#fff;';
+          wrap.insertBefore(canvas, wrap.firstChild);
+        }
+        canvas.width = vp.width;
+        canvas.height = vp.height;
+        canvas.style.width = vp.width + 'px';
+        canvas.style.height = vp.height + 'px';
+        return page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise.then(function () {
+          return pageNo;
+        });
+      }).then(function (n) {
+        if (!stillCurrent() || n == null) return;
+        clearPageLoading(els[n - 1]);
+        flags[n] = 'done';
+        requestSyncFromScroll();
+      }).catch(function () {
+        if (!stillCurrent()) return;
+        flags[pageNo] = 'err';
+        clearPageLoading(wrap);
+        var tip = document.createElement('div');
+        tip.setAttribute('data-cdp-pdf-loading', '1');
+        tip.textContent = '로드 실패';
+        tip.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:#b91c1c;background:rgba(254,242,242,.95);z-index:1;';
+        wrap.appendChild(tip);
+      });
+    }
+
+    var chain = Promise.resolve();
+    for (var p = range.from; p <= range.to; p++) {
+      (function (pageNo) {
+        chain = chain.then(function () { return renderOne(pageNo); });
+      })(p);
+    }
+    return chain;
+  }
+
+  function bindLazyStackScroll() {
+    if (!state.ui || !state.ui.scroller) return;
+    if (!state.ui._lazyScrollBound) {
+      state.ui.scroller.addEventListener('scroll', function () {
+        requestSyncFromScroll();
+        if (state._lazyRaf) return;
+        var raf = window.requestAnimationFrame || function (fn) { return setTimeout(fn, 16); };
+        state._lazyRaf = raf(function () {
+          state._lazyRaf = 0;
+          ensurePagesRendered();
+        });
+      }, { passive: true });
+      state.ui._lazyScrollBound = true;
+    }
+  }
+
   function buildContinuousStack() {
     if (!state.pdfDoc || !state.ui || !state.ui.scroller) return;
     var gen = (state.stackGen = (state.stackGen || 0) + 1);
     var scroller = state.ui.scroller;
-    var scale = state.scale || 1.15;
     if (state._pageObs) {
       try { state._pageObs.disconnect(); } catch (eO) {}
       state._pageObs = null;
@@ -622,50 +797,64 @@
     scroller.innerHTML = '';
     var els = [];
     state.ui.pageEls = els;
+    state.pageRenderFlags = {};
     var total = state.pdfDoc.numPages || 1;
     state.pageCount = total;
     state.page = Math.max(1, Math.min(state.page || 1, total));
     if (state.ui && state.ui.pageLabel) state.ui.pageLabel.textContent = state.page + ' / ' + total;
+
     function stillCurrent() {
       return !state.disposed && gen === state.stackGen && state.ui && state.ui.scroller === scroller;
     }
-    function addPage(i) {
+
+    state._rebuildStack = buildContinuousStack;
+    bindLazyStackScroll();
+
+    // Probe page 1 for fit-scale + placeholder size, then build slots and lazy-render.
+    state.pdfDoc.getPage(1).then(function (firstPage) {
       if (!stillCurrent()) return;
-      if (i > total || els.length >= total) {
-        bindPageObserver();
-        return;
+      if (!state.userScaled) {
+        var fit = computeFitScaleForPage(firstPage, scroller);
+        state.fitScale = fit;
+        state.scale = fit;
       }
-      state.pdfDoc.getPage(i).then(function (page) {
-        if (!stillCurrent()) return;
-        if (els.length >= total) return;
-        var vp = page.getViewport({ scale: scale });
+      var scale = state.scale || 1.15;
+      var vp1 = firstPage.getViewport({ scale: scale });
+      var phW = Math.max(40, Math.round(vp1.width));
+      var phH = Math.max(40, Math.round(vp1.height));
+
+      for (var i = 1; i <= total; i++) {
         var wrap = document.createElement('div');
         wrap.className = 'cdp-pdf-page';
         wrap.setAttribute('data-page', String(i));
-        wrap.style.cssText = 'margin:28px auto;background:#fff;box-shadow:0 10px 28px rgba(0,0,0,.45);border-radius:2px;position:relative;';
-        var canvas = document.createElement('canvas');
-        canvas.width = vp.width;
-        canvas.height = vp.height;
-        canvas.style.cssText = 'display:block;background:#fff;';
-        wrap.appendChild(canvas);
-        var tag = document.createElement('div');
-        tag.textContent = i + ' / ' + total;
-        tag.style.cssText = 'position:absolute;right:8px;bottom:8px;font-size:11px;color:#374151;background:rgba(255,255,255,.88);padding:2px 6px;border-radius:4px;pointer-events:none;';
-        wrap.appendChild(tag);
+        wrap.style.cssText = 'margin:28px auto;background:#fff;box-shadow:0 10px 28px rgba(0,0,0,.45);border-radius:2px;position:relative;width:' + phW + 'px;height:' + phH + 'px;flex:0 0 auto;';
+        markPageLoading(wrap, i, total);
         scroller.appendChild(wrap);
         els.push(wrap);
-        requestSyncFromScroll();
-        return page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-      }).then(function () {
-        if (!stillCurrent()) return;
-        addPage(i + 1);
-      }).catch(function () {
-        if (!stillCurrent()) return;
-        addPage(i + 1);
-      });
-    }
-    state._rebuildStack = buildContinuousStack;
-    addPage(1);
+      }
+      bindPageObserver();
+      // Jump to current page slot before rendering so the visible range is correct.
+      try {
+        var target = els[state.page - 1];
+        if (target && state.page > 1) target.scrollIntoView({ block: 'start' });
+      } catch (eScr) {}
+      ensurePagesRendered();
+    }).catch(function () {
+      if (!stillCurrent()) return;
+      // Fallback: create minimal placeholders without fit metrics
+      var scale = state.scale || 1.15;
+      for (var i = 1; i <= total; i++) {
+        var wrap = document.createElement('div');
+        wrap.className = 'cdp-pdf-page';
+        wrap.setAttribute('data-page', String(i));
+        wrap.style.cssText = 'margin:28px auto;background:#fff;box-shadow:0 10px 28px rgba(0,0,0,.45);border-radius:2px;position:relative;width:70%;min-height:420px;flex:0 0 auto;';
+        markPageLoading(wrap, i, total);
+        scroller.appendChild(wrap);
+        els.push(wrap);
+      }
+      bindPageObserver();
+      ensurePagesRendered();
+    });
   }
 
   function turnPage(next) {
@@ -673,9 +862,10 @@
     next = Math.max(1, Math.min(state.pageCount || next, next));
     if (state.ui && state.ui.pageEls && state.ui.pageEls[next - 1]) {
       state.page = next;
-      try { state.ui.pageEls[next - 1].scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {}
       if (state.ui.pageLabel) state.ui.pageLabel.textContent = state.page + ' / ' + state.pageCount;
       if (typeof state.ui.paintPageActive === 'function') try { state.ui.paintPageActive(); } catch (e2) {}
+      try { state.ui.pageEls[next - 1].scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {}
+      try { ensurePagesRendered(); } catch (eEns) {}
       return;
     }
     if (next === state.page) return;
@@ -810,6 +1000,8 @@
         if (state.ui.canvas) state.ui.canvas.style.display = '';
       } catch (eClr) {}
       setStatus(file.file_name || 'PDF');
+      state.userScaled = false;
+      state.fitScale = 0;
       if (typeof buildContinuousStack === 'function') buildContinuousStack();
       else renderPage(1);
       if (state.ui && typeof state.ui.buildPageThumbs === 'function') {
@@ -847,6 +1039,7 @@
       e.stopPropagation();
       if (e.ctrlKey) {
         e.preventDefault();
+        state.userScaled = true;
         if (e.deltaY > 0) state.scale = Math.max(0.5, state.scale - 0.1);
         else state.scale = Math.min(3, state.scale + 0.1);
         if (typeof scheduleRebuild === 'function') scheduleRebuild();
@@ -970,26 +1163,45 @@
         btn.style.boxShadow = on ? '0 8px 20px rgba(96,165,250,.35)' : '0 2px 8px rgba(0,0,0,.2)';
       });
       scrollThumbsToActive();
+      try { ensureThumbsRendered(); } catch (eEnsT) {}
     }
-    function buildPageThumbs() {
-      var gen = (state.thumbGen = (state.thumbGen || 0) + 1);
-      pageThumbs.innerHTML = '';
-      pageThumbBtns = [];
-      if (!state.pdfDoc) return;
+    function thumbSlotHeight() {
+      // 88px-wide thumb at ~0.18 scale ≈ portrait A4 ~114px + gap/cap
+      return 122;
+    }
+    function visibleThumbRange() {
+      var total = pageThumbBtns.length || (state.pdfDoc && state.pdfDoc.numPages) || 1;
+      var h = pageThumbs.clientHeight || 0;
+      try {
+        if (!h) h = pageThumbs.getBoundingClientRect().height || 0;
+      } catch (eH) {}
+      var slot = thumbSlotHeight();
+      var first = Math.floor((pageThumbs.scrollTop || 0) / slot) + 1;
+      var count = Math.max(1, Math.ceil(h / slot) + 2);
+      var from = Math.max(1, first - 1);
+      var to = Math.min(total, from + count);
+      // Always keep current page thumb warm
+      var cur = state.page || 1;
+      from = Math.min(from, cur);
+      to = Math.max(to, cur);
+      return { from: from, to: to };
+    }
+    function ensureThumbsRendered() {
+      if (!state.pdfDoc || state.disposed) return;
+      var gen = state.thumbGen;
       var total = state.pdfDoc.numPages || 1;
-      var i = 1;
+      var flags = state.thumbRenderFlags || (state.thumbRenderFlags = {});
+      var range = visibleThumbRange();
       function stillCurrent() {
         return !state.disposed && gen === state.thumbGen;
       }
-      function next() {
-        if (!stillCurrent()) return;
-        if (i > total || pageThumbBtns.length >= total) {
-          paintPageActive();
-          return;
-        }
-        var pageNo = i;
-        i += 1;
-        state.pdfDoc.getPage(pageNo).then(function (pg) {
+      function renderThumb(pageNo) {
+        if (!stillCurrent()) return Promise.resolve();
+        if (flags[pageNo] === 'done' || flags[pageNo] === 'busy') return Promise.resolve();
+        var btn = pageThumbBtns[pageNo - 1];
+        if (!btn) return Promise.resolve();
+        flags[pageNo] = 'busy';
+        return state.pdfDoc.getPage(pageNo).then(function (pg) {
           if (!stillCurrent()) return null;
           var vp = pg.getViewport({ scale: 0.18 });
           var c = document.createElement('canvas');
@@ -999,13 +1211,53 @@
           return pg.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise.then(function () { return c; });
         }).then(function (c) {
           if (!c || !stillCurrent()) return;
-          if (pageThumbBtns.length >= total) return;
+          btn.innerHTML = '';
+          btn.appendChild(c);
+          var cap = document.createElement('span');
+          cap.textContent = String(pageNo);
+          cap.style.cssText = 'position:absolute;left:4px;bottom:2px;font-size:10px;color:#111;background:rgba(255,255,255,.8);padding:0 3px;border-radius:3px;line-height:1.2';
+          btn.appendChild(cap);
+          flags[pageNo] = 'done';
+        }).catch(function () {
+          if (!stillCurrent()) return;
+          flags[pageNo] = 'err';
+          btn.textContent = String(pageNo);
+        });
+      }
+      var chain = Promise.resolve();
+      for (var p = range.from; p <= range.to; p++) {
+        (function (pageNo) {
+          chain = chain.then(function () { return renderThumb(pageNo); });
+        })(p);
+      }
+      return chain;
+    }
+    function bindThumbLazyScroll() {
+      if (pageThumbs.getAttribute('data-cdp-thumb-lazy') === '1') return;
+      pageThumbs.setAttribute('data-cdp-thumb-lazy', '1');
+      pageThumbs.addEventListener('scroll', function () {
+        if (state._thumbLazyRaf) return;
+        var raf = window.requestAnimationFrame || function (fn) { return setTimeout(fn, 16); };
+        state._thumbLazyRaf = raf(function () {
+          state._thumbLazyRaf = 0;
+          ensureThumbsRendered();
+        });
+      }, { passive: true });
+    }
+    function buildPageThumbs() {
+      var gen = (state.thumbGen = (state.thumbGen || 0) + 1);
+      pageThumbs.innerHTML = '';
+      pageThumbBtns = [];
+      state.thumbRenderFlags = {};
+      if (!state.pdfDoc) return;
+      var total = state.pdfDoc.numPages || 1;
+      for (var i = 1; i <= total; i++) {
+        (function (pageNo) {
           var btn = document.createElement('button');
           btn.type = 'button';
           btn.title = '페이지 ' + pageNo;
-          btn.style.cssText = 'padding:0;border:0;border-radius:8px;background:#fff;cursor:pointer;overflow:hidden;flex:0 0 auto';
-          btn.appendChild(c);
-          btn.style.position = 'relative';
+          btn.style.cssText = 'padding:0;border:0;border-radius:8px;background:#f3f4f6;color:#6b7280;cursor:pointer;overflow:hidden;flex:0 0 auto;width:88px;min-height:110px;position:relative;display:flex;align-items:center;justify-content:center;font-size:11px;';
+          btn.textContent = '페이지 로드중';
           var cap = document.createElement('span');
           cap.textContent = String(pageNo);
           cap.style.cssText = 'position:absolute;left:4px;bottom:2px;font-size:10px;color:#111;background:rgba(255,255,255,.8);padding:0 3px;border-radius:3px;line-height:1.2';
@@ -1013,13 +1265,16 @@
           btn.addEventListener('click', function () { turnPage(pageNo); });
           pageThumbs.appendChild(btn);
           pageThumbBtns.push(btn);
-          next();
-        }).catch(function () {
-          if (!stillCurrent()) return;
-          next();
-        });
+        })(i);
       }
-      next();
+      bindThumbLazyScroll();
+      paintPageActive();
+      // Defer one frame so rail has real height before deciding how many to paint.
+      var raf = window.requestAnimationFrame || function (fn) { return setTimeout(fn, 16); };
+      raf(function () {
+        if (state.disposed || gen !== state.thumbGen) return;
+        ensureThumbsRendered();
+      });
     }
     var RAIL_OPEN = '<svg width="10" height="14" viewBox="0 0 10 14"><polyline points="3.5 2 7.5 7 3.5 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     var RAIL_CLOSE = '<svg width="10" height="14" viewBox="0 0 10 14"><polyline points="6.5 2 2.5 7 6.5 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -1172,8 +1427,8 @@
     }
     zoomBox.appendChild(pill(PRINT_ICON, '인쇄', printCurrent));
     zoomBox.appendChild(pill(DL_ICON, '다운로드', downloadCurrent));
-    zoomBox.appendChild(pill(MAG_PLUS, '확대', function () { state.scale = Math.min(3, state.scale + 0.15); scheduleRebuild(); }));
-    zoomBox.appendChild(pill(MAG_MINUS, '축소', function () { state.scale = Math.max(0.5, state.scale - 0.15); scheduleRebuild(); }));
+    zoomBox.appendChild(pill(MAG_PLUS, '확대', function () { state.userScaled = true; state.scale = Math.min(3, state.scale + 0.15); scheduleRebuild(); }));
+    zoomBox.appendChild(pill(MAG_MINUS, '축소', function () { state.userScaled = true; state.scale = Math.max(0.5, state.scale - 0.15); scheduleRebuild(); }));
     function fadeOn(on) {
       pageNav.style.opacity = on ? '1' : '.38';
       zoomBox.style.opacity = on ? '1' : '.38';
