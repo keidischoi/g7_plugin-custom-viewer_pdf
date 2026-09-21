@@ -16,19 +16,7 @@ final class SettingsLayoutRegistrar
 
     public static function ensure(): void
     {
-        try {
-            $json = self::payload();
-            if ($json === '') {
-                return;
-            }
-            foreach (['layouts', 'g7_layouts', 'template_layouts'] as $table) {
-                if (! Schema::hasTable($table)) {
-                    continue;
-                }
-                self::upsert($table, $json);
-            }
-        } catch (\Throwable $e) {
-        }
+        return;
     }
 
     private static function payload(): string

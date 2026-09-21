@@ -4,6 +4,9 @@ namespace Plugins\Custom\ViewerPdf\Support;
 
 final class ViewerPdfSettings
 {
+    private static bool $readingG7 = false;
+
+    private static bool $writingG7 = false;
     public static function defaults(): array
     {
         return [
@@ -72,12 +75,16 @@ final class ViewerPdfSettings
      */
     private static function fromG7(): array
     {
-        $id = 'custom-viewer_pdf';
-        $try = [];
-        if (function_exists('g7_plugin_settings')) {
-            $try[] = g7_plugin_settings($id);
+        if (self::$readingG7 || self::$writingG7) {
+            return [];
         }
+        self::$readingG7 = true;
         try {
+            $id = 'custom-viewer_pdf';
+            $try = [];
+            if (function_exists('g7_plugin_settings')) {
+                $try[] = g7_plugin_settings($id);
+            }
             if (function_exists('app')) {
                 foreach ([
                     'App\\Services\\PluginSettingsService',
@@ -95,13 +102,15 @@ final class ViewerPdfSettings
                     }
                 }
             }
-        } catch (\Throwable $e) {
-        }
 
-        foreach ($try as $row) {
-            if (is_array($row) && $row) {
-                return $row;
+            foreach ($try as $row) {
+                if (is_array($row) && $row) {
+                    return $row;
+                }
             }
+        } catch (\Throwable $e) {
+        } finally {
+            self::$readingG7 = false;
         }
 
         return [];
@@ -182,6 +191,10 @@ final class ViewerPdfSettings
      */
     private static function writeG7(array $data): void
     {
+        if (self::$writingG7 || self::$readingG7) {
+            return;
+        }
+        self::$writingG7 = true;
         $id = 'custom-viewer_pdf';
         try {
             foreach (['g7_plugin_settings_set', 'g7_set_plugin_settings'] as $fn) {
@@ -211,6 +224,8 @@ final class ViewerPdfSettings
                 }
             }
         } catch (\Throwable $e) {
+        } finally {
+            self::$writingG7 = false;
         }
     }
 

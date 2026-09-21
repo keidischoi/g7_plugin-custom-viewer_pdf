@@ -34,6 +34,11 @@ expect(html.indexOf('name="badge_order"') !== -1 && html.indexOf('PDF 정렬 번
   expect(layout.indexOf('/api/admin/plugins/') === -1, rel + ' does not use host admin settings API');
 });
 
+var phpPlugin = fs.readFileSync(path.join(__dirname, '..', 'plugin.php'), 'utf8');
+expect(phpPlugin.indexOf('ViewerPdfSettings::get()') === -1, 'getConfigValues does not call ViewerPdfSettings::get (avoids 503 recursion)');
+expect(phpPlugin.indexOf('SettingsLayoutRegistrar::ensure()') === -1, 'plugin boot does not upsert layouts');
+
 var php = fs.readFileSync(path.join(__dirname, '..', 'src/Support/ViewerPdfSettings.php'), 'utf8');
 expect(php.indexOf("'badge_order' => 20") !== -1, 'ViewerPdfSettings defaults include badge_order 20');
 expect(php.indexOf('clampBadgeOrder') !== -1, 'get/put clamp badge_order');
+expect(php.indexOf('$readingG7') !== -1, 'fromG7 is re-entrancy guarded');
