@@ -28,7 +28,7 @@
       "hint": "$t:settings.badge_label.hint"
     },
     "badge_order": {
-      "type": "integer",
+      "type": "number",
       "default": 20,
       "label": "$t:settings.badge_order.label",
       "hint": "$t:settings.badge_order.hint"

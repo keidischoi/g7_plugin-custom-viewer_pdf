@@ -58,7 +58,7 @@ class SettingsController extends Controller
         if (isset($payload['settings']) && is_array($payload['settings'])) {
             $payload = $payload['settings'];
         }
-        $saved = ViewerPdfSettings::put([
+        $saved = ViewerPdfSettings::put(array_merge($payload, [
             'badge_icon' => $payload['badge_icon'] ?? $request->input('badge_icon'),
             'badge_label' => $payload['badge_label'] ?? $request->input('badge_label'),
             'badge_order' => $payload['badge_order'] ?? $request->input('badge_order'),
@@ -70,7 +70,7 @@ class SettingsController extends Controller
             'show_page_thumbs' => $payload['show_page_thumbs'] ?? $request->boolean('show_page_thumbs'),
             'show_file_rail' => $payload['show_file_rail'] ?? $request->boolean('show_file_rail'),
             'wheel_turns_page' => $payload['wheel_turns_page'] ?? $request->boolean('wheel_turns_page'),
-        ]);
+        ]));
 
         if ($request->wantsJson()) {
             return response()->json(['ok' => true, 'settings' => $saved]);

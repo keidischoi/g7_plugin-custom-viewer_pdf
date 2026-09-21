@@ -221,6 +221,9 @@
                                                     "id": "badge_order",
                                                     "name": "badge_order",
                                                     "type": "number",
+                                                    "min": 0,
+                                                    "max": 999,
+                                                    "step": 1,
                                                     "className": "lg:col-span-1 form-input"
                                                 }
                                             }
@@ -675,7 +678,7 @@
             "default": "PDF"
         },
         "badge_order": {
-            "type": "integer",
+            "type": "number",
             "default": 20
         },
         "default_scale": {

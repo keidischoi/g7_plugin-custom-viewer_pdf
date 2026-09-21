@@ -49,6 +49,11 @@ final class ViewerPdfSettings
                 if (isset($raw['settings']) && is_array($raw['settings'])) {
                     $raw = $raw['settings'];
                 }
+                foreach ($raw as $k => $v) {
+                    if (is_array($v) && array_key_exists('default', $v)) {
+                        $raw[$k] = $v['default'];
+                    }
+                }
                 $out = array_merge($out, array_intersect_key($raw, $out));
             } catch (\Throwable $e) {
             }

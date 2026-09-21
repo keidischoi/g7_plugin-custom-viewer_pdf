@@ -9,54 +9,65 @@
     .card{max-width:560px;margin:0 auto;background:#1f2937;border-radius:12px;padding:20px}
     label{display:block;margin:12px 0 4px}
     input[type=text],input[type=number]{width:100%;padding:8px;border-radius:8px;border:0;box-sizing:border-box}
-    .row{display:flex;align-items:center;gap:8px;margin:8px 0}
     button{margin-top:16px;padding:10px 16px;border:0;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer}
-    .msg{margin-top:12px;color:#86efac}
+    .row{display:flex;align-items:center;gap:8px;margin:8px 0}
+    .hint{opacity:.7;font-size:12px;margin-top:4px}
   </style>
 </head>
 <body>
   <div class="card">
     <h1 style="margin-top:0;font-size:20px">PDF 뷰어 설정</h1>
-    <form id="f">
-      <label>배지 아이콘</label><input name="badge_icon" id="badge_icon">
-      <label>배지 글자</label><input name="badge_label" id="badge_label">
-      <label>기본 배율</label><input name="default_scale" id="default_scale" type="number" step="0.05" min="0.5" max="3">
-      <label>휠 스크롤 간격(ms, 클수록 천천히 넘김)</label><input name="wheel_scroll_px" id="wheel_scroll_px" type="number" step="10" min="80" max="800">
-      <div class="row"><input type="checkbox" name="show_print" id="show_print"> 인쇄 버튼</div>
-      <div class="row"><input type="checkbox" name="show_download" id="show_download"> 다운로드 버튼</div>
-      <div class="row"><input type="checkbox" name="show_zoom" id="show_zoom"> 확대/축소</div>
-      <div class="row"><input type="checkbox" name="show_page_thumbs" id="show_page_thumbs"> 페이지 미리보기</div>
-      <div class="row"><input type="checkbox" name="show_file_rail" id="show_file_rail"> 파일 목록 슬라이더</div>
-      <div class="row"><input type="checkbox" name="wheel_turns_page" id="wheel_turns_page"> 휠로 페이지 넘김</div>
+    <form id="pdf-settings">
+      <label for="badge_icon">배지 아이콘</label>
+      <input id="badge_icon" name="badge_icon" type="text">
+      <label for="badge_label">배지 글자</label>
+      <input id="badge_label" name="badge_label" type="text">
+      <label for="badge_order">PDF 정렬 번호</label>
+      <input id="badge_order" name="badge_order" type="number" min="0" max="999" step="1" value="20">
+      <p class="hint">작을수록 위에 표시됩니다. 0~999, 기본 20</p>
+      <label for="default_scale">기본 배율</label>
+      <input id="default_scale" name="default_scale" type="number" step="0.05" min="0.5" max="3">
+      <label for="wheel_scroll_px">휠 스크롤 양 (px)</label>
+      <input id="wheel_scroll_px" name="wheel_scroll_px" type="number" step="10" min="40" max="800">
+      <div class="row"><input type="checkbox" id="show_print" name="show_print" value="1"> 인쇄 버튼</div>
+      <div class="row"><input type="checkbox" id="show_download" name="show_download" value="1"> 다운로드 버튼</div>
+      <div class="row"><input type="checkbox" id="show_zoom" name="show_zoom" value="1"> 확대/축소</div>
+      <div class="row"><input type="checkbox" id="show_page_thumbs" name="show_page_thumbs" value="1"> 페이지 미리보기</div>
+      <div class="row"><input type="checkbox" id="show_file_rail" name="show_file_rail" value="1"> 파일 목록 슬라이더</div>
+      <div class="row"><input type="checkbox" id="wheel_turns_page" name="wheel_turns_page" value="1"> 휠로 페이지 넘김</div>
       <button type="submit">저장</button>
-      <div class="msg" id="msg"></div>
     </form>
+    <p class="hint">저장 후 공유 페이지를 새로고침하면 바로 반영됩니다.</p>
   </div>
   <script>
-    var API = '/api/plugins/custom-viewer_pdf/admin/settings';
-    function load() {
-      fetch(API + '?format=json', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (s) {
-        ['badge_icon','badge_label','default_scale','wheel_scroll_px'].forEach(function (k) {
-          if (document.getElementById(k) && s[k] != null) document.getElementById(k).value = s[k];
-        });
-        ['show_print','show_download','show_zoom','show_page_thumbs','show_file_rail','wheel_turns_page'].forEach(function (k) {
+    (function () {
+      var api = '/api/plugins/custom-viewer_pdf/admin/settings';
+      var keys = ['badge_icon','badge_label','badge_order','default_scale','wheel_scroll_px'];
+      var flags = ['show_print','show_download','show_zoom','show_page_thumbs','show_file_rail','wheel_turns_page'];
+      function fill(s) {
+        keys.forEach(function (k) {
           var el = document.getElementById(k);
-          if (el) el.checked = !!s[k];
+          if (el && s[k] != null) el.value = s[k];
         });
-      }).catch(function () { document.getElementById('msg').textContent = '설정을 불러오지 못했습니다.'; });
-    }
-    document.getElementById('f').addEventListener('submit', function (e) {
-      e.preventDefault();
-      var fd = new FormData(e.target);
-      ['show_print','show_download','show_zoom','show_page_thumbs','show_file_rail','wheel_turns_page'].forEach(function (k) {
-        if (!fd.has(k)) fd.set(k, '0');
+        flags.forEach(function (k) { var el = document.getElementById(k); if (el) el.checked = !!s[k]; });
+      }
+      fetch(api, { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(fill).catch(function () {});
+      document.getElementById('pdf-settings').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var body = {};
+        keys.forEach(function (k) {
+          var el = document.getElementById(k);
+          body[k] = (k === 'badge_order' || k === 'wheel_scroll_px' || k === 'default_scale') ? Number(el.value) : el.value;
+        });
+        flags.forEach(function (k) { body[k] = document.getElementById(k).checked; });
+        fetch(api, {
+          method: 'PUT',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify(body)
+        }).then(function (r) { return r.json(); }).then(function (d) { fill(d.settings || d); }).catch(function () {});
       });
-      fetch(API, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
-        .then(function (r) { return r.json(); })
-        .then(function () { document.getElementById('msg').textContent = '저장했습니다. 공유 페이지를 새로고침하세요.'; })
-        .catch(function () { document.getElementById('msg').textContent = '저장 실패'; });
-    });
-    load();
+    })();
   </script>
 </body>
 </html>
