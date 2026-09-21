@@ -1,4 +1,4 @@
-/*! custom-viewer_pdf 0.2.17 share PDF viewer (plugin; host=custom-digital_product) */
+/*! custom-viewer_pdf 0.2.18 share PDF viewer (plugin; host=custom-digital_product) */
 (function () {
   function badgeRank(el) {
     var id = '';
@@ -621,13 +621,37 @@
     return { w: Math.max(80, w), h: Math.max(80, h) };
   }
 
+  // Left page-thumb rail is position:absolute over the stage (left:10px, width:96px).
+  // Reserve that strip + a gap so the fitted page does not sit under the thumbs.
+  var PDF_THUMB_RAIL_LEFT = 10;
+  var PDF_THUMB_RAIL_WIDTH = 96;
+  var PDF_THUMB_PAGE_GAP = 24;
+  var PDF_PAGE_RIGHT_PAD = 20;
+
+  function thumbRailReservePx() {
+    try {
+      if (!pdfCfg().show_page_thumbs) return 0;
+    } catch (eCfg) {}
+    return PDF_THUMB_RAIL_LEFT + PDF_THUMB_RAIL_WIDTH + PDF_THUMB_PAGE_GAP;
+  }
+
+  function applyScrollerThumbInset(scroller) {
+    if (!scroller) return;
+    var left = thumbRailReservePx();
+    scroller.style.boxSizing = 'border-box';
+    scroller.style.paddingLeft = left ? (left + 'px') : '0px';
+    scroller.style.paddingRight = PDF_PAGE_RIGHT_PAD + 'px';
+  }
+
   function computeFitScaleForPage(page, scroller) {
     var base = page.getViewport({ scale: 1 });
     var sz = scrollerAvailSize(scroller);
-    // Leave room for left thumb rail overlay + page margin so the page sits inside the red-box stage.
-    var padX = 120;
+    applyScrollerThumbInset(scroller);
+    var left = thumbRailReservePx();
+    var right = PDF_PAGE_RIGHT_PAD;
     var padY = 48;
-    var availW = Math.max(60, sz.w - padX);
+    // clientWidth includes padding; subtract reserved L/R so width fit clears the thumb rail.
+    var availW = Math.max(60, sz.w - left - right);
     var availH = Math.max(60, sz.h - padY);
     var sx = availW / Math.max(1, base.width);
     var sy = availH / Math.max(1, base.height);
@@ -783,6 +807,7 @@
     if (!state.pdfDoc || !state.ui || !state.ui.scroller) return;
     var gen = (state.stackGen = (state.stackGen || 0) + 1);
     var scroller = state.ui.scroller;
+    applyScrollerThumbInset(scroller);
     if (state._pageObs) {
       try { state._pageObs.disconnect(); } catch (eO) {}
       state._pageObs = null;
