@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.14] - 2026-09-21
+
+### Fixed
+- Admin settings page no longer 404s on `template_id=1, name=custom-viewer_pdf.plugin_settings` (serve that layout by exact name; stop deleting the row)
+- Share-page badge stack is not re-appended every 250ms, so the drawings badge click/hover still fires
+
 ## [0.2.13] - 2026-09-21
 
 ### Fixed

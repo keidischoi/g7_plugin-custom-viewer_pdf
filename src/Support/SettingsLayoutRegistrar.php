@@ -16,57 +16,61 @@ final class SettingsLayoutRegistrar
 
     public static function ensure(): void
     {
-        return;
-    }
-
-    /**
-     * Remove the settings layout row 0.2.9/0.2.10 may have inserted into
-     * the host layouts table. G7 then tried to load it and showed
-     * "Failed to load layout".
-     */
-    public static function removeOrphan(): void
-    {
         static $done = false;
         if ($done) {
             return;
         }
         $done = true;
         try {
+            $json = self::payload();
+            if ($json === '') {
+                return;
+            }
             foreach (['layouts', 'g7_layouts', 'template_layouts'] as $table) {
                 if (! Schema::hasTable($table)) {
                     continue;
                 }
-                $cols = Schema::getColumnListing($table);
-                $nameCol = self::firstCol($cols, ['name', 'layout_name', 'key']);
-                if ($nameCol === null) {
-                    continue;
-                }
-                DB::table($table)->where($nameCol, self::LAYOUT_NAME)->delete();
+                self::upsert($table, $json);
             }
         } catch (\Throwable $e) {
         }
     }
 
-    private static function payload(): string
+    public static function payloadArray(): ?array
     {
-        $path = dirname(__DIR__, 2).'/resources/layouts/custom-viewer_pdf.plugin_settings.json';
-        if (! is_file($path)) {
-            $path = dirname(__DIR__, 2).'/resources/layouts/admin/plugin_settings.json';
-        }
-        if (! is_file($path)) {
-            return '';
-        }
-        $data = json_decode((string) file_get_contents($path), true);
-        if (! is_array($data)) {
-            return '';
-        }
-        $data['layout_name'] = self::LAYOUT_NAME;
-        $data['name'] = self::LAYOUT_NAME;
-        if (!isset($data['components']) || !is_array($data['components'])) {
-            $data['components'] = [];
+        $paths = [
+            dirname(__DIR__, 2).'/resources/layouts/custom-viewer_pdf.plugin_settings.json',
+            dirname(__DIR__, 2).'/resources/layouts/admin/plugin_settings.json',
+        ];
+        foreach ($paths as $path) {
+            if (! is_file($path)) {
+                continue;
+            }
+            $data = json_decode((string) file_get_contents($path), true);
+            if (! is_array($data) || ! isset($data['slots'])) {
+                continue;
+            }
+            $data['layout_name'] = self::LAYOUT_NAME;
+            $data['name'] = self::LAYOUT_NAME;
+            if (! isset($data['components']) || ! is_array($data['components'])) {
+                $data['components'] = [];
+            }
+            unset($data['init_actions']);
+
+            return $data;
         }
 
-        return json_encode($data, JSON_UNESCAPED_UNICODE);
+        return null;
+    }
+
+    private static function payload(): string
+    {
+        $data = self::payloadArray();
+        if ($data === null) {
+            return '';
+        }
+
+        return json_encode($data, JSON_UNESCAPED_UNICODE) ?: '';
     }
 
     private static function upsert(string $table, string $json): void
