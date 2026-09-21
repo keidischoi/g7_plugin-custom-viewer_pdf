@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.16] - 2026-09-21
+
+### Added
+- Settings page `badge_order` (default 20, 0–999; lower appears higher). Host reads `window.__cdpViewerOrder['custom-viewer_pdf']`.
+
 ## [0.2.15] - 2026-09-21
 
 ### Fixed

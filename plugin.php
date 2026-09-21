@@ -45,6 +45,9 @@ class Plugin extends AbstractPlugin
             '0.2.15' => static function (): void {
                 SettingsLayoutRegistrar::ensure();
             },
+            '0.2.16' => static function (): void {
+                SettingsLayoutRegistrar::ensure();
+            },
         ];
     }
 
@@ -90,8 +93,8 @@ class Plugin extends AbstractPlugin
                 'default' => 20,
                 'label' => ['ko' => 'PDF 정렬 번호', 'en' => 'PDF sort order'],
                 'hint' => [
-                    'ko' => '작을수록 위에 표시됩니다. 0~999',
-                    'en' => 'Lower numbers appear higher. 0-999',
+                    'ko' => '이 플러그인 배지만의 순서. 작을수록 위. 기본 20. 호스트는 window.__cdpViewerOrder[\'custom-viewer_pdf\'] 로 받는다.',
+                    'en' => '이 플러그인 배지만의 순서. 작을수록 위. 기본 20. 호스트는 window.__cdpViewerOrder[\'custom-viewer_pdf\'] 로 받는다.',
                 ],
                 'required' => false,
             ],
