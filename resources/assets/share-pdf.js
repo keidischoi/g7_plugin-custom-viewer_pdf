@@ -1,15 +1,16 @@
-/*! custom-viewer_pdf 0.2.8 share PDF viewer (plugin; host=custom-digital_product) */
+/*! custom-viewer_pdf 0.2.9 share PDF viewer (plugin; host=custom-digital_product) */
 (function () {
   if (window.__cdpPdf) return;
 
   function pdfCfg() {
-    var d = { badge_label: 'PDF', badge_icon: '📄', show_print: true, show_download: true, show_page_thumbs: true, show_file_rail: true, show_zoom: true, wheel_turns_page: true, wheel_scroll_px: 140, default_scale: 1.15 };
+    var d = { badge_label: 'PDF', badge_icon: '📄', badge_order: 20, show_print: true, show_download: true, show_page_thumbs: true, show_file_rail: true, show_zoom: true, wheel_turns_page: true, wheel_scroll_px: 140, default_scale: 1.15 };
     try {
       var fromG7 = (window.G7Config && window.G7Config.plugins && window.G7Config.plugins['custom-viewer_pdf']) || {};
       var s = Object.assign({}, fromG7, window.__cdpPdfSettings || {});
       Object.keys(s).forEach(function (k) { d[k] = s[k]; });
       d.wheel_scroll_px = Number(d.wheel_scroll_px) || 140;
       d.default_scale = Number(d.default_scale) || 1.15;
+      d.badge_order = Number(d.badge_order) || 20;
       ['show_print','show_download','show_zoom','show_page_thumbs','show_file_rail','wheel_turns_page'].forEach(function (k) {
         d[k] = !(d[k] === false || d[k] === 0 || d[k] === '0' || d[k] === 'false');
       });
@@ -20,6 +21,10 @@
   function pullSettings() {
     return Promise.resolve();
   }
+
+  var settings = pdfCfg();
+  window.__cdpViewerOrder = window.__cdpViewerOrder || {};
+  window.__cdpViewerOrder['custom-viewer_pdf'] = Number(settings.badge_order) || 20;
 
   var PDFJS_CDN = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build';
   var state = {

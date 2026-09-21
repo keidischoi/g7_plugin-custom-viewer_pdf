@@ -181,6 +181,52 @@
                                         ]
                                     },
                                     {
+                                        "id": "field_badge_order",
+                                        "type": "basic",
+                                        "name": "Div",
+                                        "props": {
+                                            "className": "grid-2col lg:grid-cols-3 items-center px-6 py-4"
+                                        },
+                                        "children": [
+                                            {
+                                                "type": "basic",
+                                                "name": "Div",
+                                                "props": {
+                                                    "className": "lg:col-span-2"
+                                                },
+                                                "children": [
+                                                    {
+                                                        "type": "basic",
+                                                        "name": "Label",
+                                                        "props": {
+                                                            "className": "form-label",
+                                                            "htmlFor": "badge_order"
+                                                        },
+                                                        "text": "PDF 정렬 번호"
+                                                    },
+                                                    {
+                                                        "type": "basic",
+                                                        "name": "P",
+                                                        "props": {
+                                                            "className": "form-hint"
+                                                        },
+                                                        "text": "작을수록 위에 표시됩니다. 0~999"
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "type": "basic",
+                                                "name": "Input",
+                                                "props": {
+                                                    "id": "badge_order",
+                                                    "name": "badge_order",
+                                                    "type": "number",
+                                                    "className": "lg:col-span-1 form-input"
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    {
                                         "id": "field_default_scale",
                                         "type": "basic",
                                         "name": "Div",
@@ -627,6 +673,10 @@
         "badge_label": {
             "type": "string",
             "default": "PDF"
+        },
+        "badge_order": {
+            "type": "integer",
+            "default": 20
         },
         "default_scale": {
             "type": "number",

@@ -6,6 +6,7 @@
   "defaults": {
     "badge_icon": "📄",
     "badge_label": "PDF",
+    "badge_order": 20,
     "default_scale": 1.15,
     "wheel_scroll_px": 140,
     "show_print": true,
@@ -18,6 +19,7 @@
   "frontend_schema": {
     "badge_icon": { "expose": true },
     "badge_label": { "expose": true },
+    "badge_order": { "expose": true },
     "default_scale": { "expose": true },
     "wheel_scroll_px": { "expose": true },
     "show_print": { "expose": true },

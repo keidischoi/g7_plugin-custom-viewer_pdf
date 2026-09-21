@@ -10,6 +10,7 @@
     "guide_item_2": "Toggle buttons to show or hide viewer controls.",
     "badge_icon": { "label": "Badge icon", "hint": "Emoji on the image badge" },
     "badge_label": { "label": "Badge label", "hint": "Text shown on hover" },
+    "badge_order": { "label": "PDF sort order", "hint": "Lower numbers appear higher. 0-999" },
     "default_scale": { "label": "Default scale", "hint": "0.5 to 3.0" },
     "wheel_scroll_px": { "label": "Wheel scroll (px)", "hint": "Smaller is slower" },
     "show_print": { "label": "Print button", "hint": "" },

@@ -38,6 +38,7 @@ class Plugin extends AbstractPlugin
         return [
             'badge_icon' => '📄',
             'badge_label' => 'PDF',
+            'badge_order' => 20,
             'default_scale' => 1.15,
             'wheel_scroll_px' => 140,
             'show_print' => true,

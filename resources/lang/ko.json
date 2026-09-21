@@ -10,6 +10,7 @@
     "guide_item_2": "버튼 표시를 끄면 뷰어에서 해당 아이콘이 숨겨집니다.",
     "badge_icon": { "label": "배지 아이콘", "hint": "이미지 위 배지에 표시할 이모지" },
     "badge_label": { "label": "배지 글자", "hint": "마우스 오버 시 표시되는 글자" },
+    "badge_order": { "label": "PDF 정렬 번호", "hint": "작을수록 위에 표시됩니다. 0~999" },
     "default_scale": { "label": "기본 배율", "hint": "0.5 ~ 3.0" },
     "wheel_scroll_px": { "label": "휠 스크롤 양 (px)", "hint": "작을수록 천천히 스크롤됩니다" },
     "show_print": { "label": "인쇄 버튼", "hint": "뷰어에 인쇄 아이콘 표시" },
