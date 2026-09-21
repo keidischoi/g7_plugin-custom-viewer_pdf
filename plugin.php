@@ -15,14 +15,6 @@ use App\Extension\AbstractPlugin;
  */
 class Plugin extends AbstractPlugin
 {
-    public function __construct()
-    {
-        try {
-            \Plugins\Custom\ViewerPdf\Support\SettingsLayoutRegistrar::ensure();
-        } catch (\Throwable $e) {
-        }
-    }
-
     /**
      * @return array<class-string>
      */
@@ -35,22 +27,18 @@ class Plugin extends AbstractPlugin
 
     public function getConfigValues(): array
     {
-        try {
-            return \Plugins\Custom\ViewerPdf\Support\ViewerPdfSettings::get();
-        } catch (\Throwable $e) {
-            return [
-                'badge_icon' => '📄',
-                'badge_label' => 'PDF',
-                'badge_order' => 20,
-                'default_scale' => 1.15,
-                'wheel_scroll_px' => 140,
-                'show_print' => true,
-                'show_download' => true,
-                'show_zoom' => true,
-                'show_page_thumbs' => true,
-                'show_file_rail' => true,
-                'wheel_turns_page' => false,
-            ];
-        }
+        return [
+            'badge_icon' => '📄',
+            'badge_label' => 'PDF',
+            'badge_order' => 20,
+            'default_scale' => 1.15,
+            'wheel_scroll_px' => 140,
+            'show_print' => true,
+            'show_download' => true,
+            'show_zoom' => true,
+            'show_page_thumbs' => true,
+            'show_file_rail' => true,
+            'wheel_turns_page' => false,
+        ];
     }
 }

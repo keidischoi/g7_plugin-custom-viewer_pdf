@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.11] - 2026-09-21
+
+### Fixed
+- Stop 503 from `getConfigValues()` → G7 settings → `getConfigValues()` recursion
+- Do not upsert layouts from the plugin constructor on every request
+
 ## [0.2.10] - 2026-09-21
 
 ### Fixed
