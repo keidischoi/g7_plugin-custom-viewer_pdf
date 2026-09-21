@@ -30,6 +30,8 @@ expect(html.indexOf('name="badge_order"') !== -1 && html.indexOf('PDF 정렬 번
 ['resources/layouts/custom-viewer_pdf.plugin_settings.json', 'resources/layouts/admin/plugin_settings.json'].forEach(function (rel) {
   var layout = fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
   expect(layout.indexOf('field_badge_order') !== -1 && layout.indexOf('PDF 정렬 번호') !== -1, rel + ' has PDF 정렬 번호');
+  expect(layout.indexOf('/api/plugins/custom-viewer_pdf/admin/settings') !== -1, rel + ' saves via plugin settings API');
+  expect(layout.indexOf('/api/admin/plugins/') === -1, rel + ' does not use host admin settings API');
 });
 
 var php = fs.readFileSync(path.join(__dirname, '..', 'src/Support/ViewerPdfSettings.php'), 'utf8');

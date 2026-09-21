@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.10] - 2026-09-21
+
+### Fixed
+- Settings form now GET/PUT `/api/plugins/custom-viewer_pdf/admin/settings` so saved values persist (was writing to the host `/api/admin/plugins/...` store the plugin never reads)
+
 ## [0.2.9] - 2026-09-21
 
 ### Added

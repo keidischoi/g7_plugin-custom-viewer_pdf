@@ -11,15 +11,38 @@ class SettingsController extends Controller
     public function show(Request $request)
     {
         $s = ViewerPdfSettings::get();
-        if ($request->query('html') !== '1') {
-            return response()->json($s);
+        if ($request->query('html') === '1') {
+            return $this->html($s);
         }
 
+        return response()->json($s);
+    }
+
+    public function save(Request $request)
+    {
+        $payload = $request->all();
+        foreach (['data', 'settings', 'form', 'values', 'config'] as $wrap) {
+            if (isset($payload[$wrap]) && is_array($payload[$wrap])) {
+                $payload = $payload[$wrap];
+                break;
+            }
+        }
+
+        $saved = ViewerPdfSettings::put($payload);
+
+        return response()->json($saved);
+    }
+
+    /**
+     * @param  array<string, mixed>  $s
+     */
+    private function html(array $s)
+    {
         $h = function ($v) {
             return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
         };
         $chk = function ($k) use ($s) {
-            return !empty($s[$k]) ? 'checked' : '';
+            return ! empty($s[$k]) ? 'checked' : '';
         };
 
         $html = '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">';
@@ -47,35 +70,5 @@ class SettingsController extends Controller
         $html .= '</div></body></html>';
 
         return response($html, 200, ['Content-Type' => 'text/html; charset=UTF-8']);
-    }
-
-    public function save(Request $request)
-    {
-        $payload = $request->all();
-        if (isset($payload['data']) && is_array($payload['data'])) {
-            $payload = $payload['data'];
-        }
-        if (isset($payload['settings']) && is_array($payload['settings'])) {
-            $payload = $payload['settings'];
-        }
-        $saved = ViewerPdfSettings::put(array_merge($payload, [
-            'badge_icon' => $payload['badge_icon'] ?? $request->input('badge_icon'),
-            'badge_label' => $payload['badge_label'] ?? $request->input('badge_label'),
-            'badge_order' => $payload['badge_order'] ?? $request->input('badge_order'),
-            'default_scale' => $payload['default_scale'] ?? $request->input('default_scale'),
-            'wheel_scroll_px' => $payload['wheel_scroll_px'] ?? $request->input('wheel_scroll_px'),
-            'show_print' => $payload['show_print'] ?? $request->boolean('show_print'),
-            'show_download' => $payload['show_download'] ?? $request->boolean('show_download'),
-            'show_zoom' => $payload['show_zoom'] ?? $request->boolean('show_zoom'),
-            'show_page_thumbs' => $payload['show_page_thumbs'] ?? $request->boolean('show_page_thumbs'),
-            'show_file_rail' => $payload['show_file_rail'] ?? $request->boolean('show_file_rail'),
-            'wheel_turns_page' => $payload['wheel_turns_page'] ?? $request->boolean('wheel_turns_page'),
-        ]));
-
-        if ($request->wantsJson()) {
-            return response()->json(['ok' => true, 'settings' => $saved]);
-        }
-
-        return redirect('/api/plugins/custom-viewer_pdf/admin/settings')->with('ok', '1');
     }
 }

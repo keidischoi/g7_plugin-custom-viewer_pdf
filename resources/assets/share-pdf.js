@@ -1,4 +1,4 @@
-/*! custom-viewer_pdf 0.2.9 share PDF viewer (plugin; host=custom-digital_product) */
+/*! custom-viewer_pdf 0.2.10 share PDF viewer (plugin; host=custom-digital_product) */
 (function () {
   if (window.__cdpPdf) return;
 

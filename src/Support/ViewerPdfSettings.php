@@ -40,25 +40,11 @@ final class ViewerPdfSettings
             }
             try {
                 $raw = json_decode((string) file_get_contents($path), true);
-                if (!is_array($raw)) {
-                    continue;
-                }
-                if (isset($raw['defaults']) && is_array($raw['defaults'])) {
-                    $raw = $raw['defaults'];
-                }
-                if (isset($raw['settings']) && is_array($raw['settings'])) {
-                    $raw = $raw['settings'];
-                }
-                foreach ($raw as $k => $v) {
-                    if (is_array($v) && array_key_exists('default', $v)) {
-                        $raw[$k] = $v['default'];
-                    }
-                }
-                $out = array_merge($out, array_intersect_key($raw, $out));
+                $out = self::mergeRow($out, $raw);
             } catch (\Throwable $e) {
             }
         }
-
+        $out = self::mergeRow($out, self::fromG7());
         $out['badge_order'] = self::clampBadgeOrder($out['badge_order'] ?? 20);
 
         return $out;
@@ -124,11 +110,13 @@ final class ViewerPdfSettings
     public static function put(array $data): array
     {
         $cur = self::get();
+        $data = self::unwrapRow($data);
         foreach ($data as $k => $v) {
             if ($v === null) {
                 unset($data[$k]);
             }
         }
+        $data = array_intersect_key($data, self::defaults());
         $next = array_merge($cur, $data);
         $next['badge_label'] = mb_substr(trim((string) ($next['badge_label'] ?? 'PDF')), 0, 16);
         $next['badge_icon'] = mb_substr(trim((string) ($next['badge_icon'] ?? '📄')), 0, 8);
@@ -140,9 +128,90 @@ final class ViewerPdfSettings
         $step = (int) ($next['wheel_scroll_px'] ?? 140);
         $next['wheel_scroll_px'] = max(40, min(800, $step ?: 140));
         $next['badge_order'] = self::clampBadgeOrder($next['badge_order'] ?? 20);
-        file_put_contents(self::path(), json_encode($next, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+        $json = json_encode($next, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        file_put_contents(self::path(), $json);
+        self::writeG7($next);
 
         return $next;
+    }
+
+    /**
+     * @param  array<string, mixed>  $out
+     * @return array<string, mixed>
+     */
+    private static function mergeRow(array $out, mixed $raw): array
+    {
+        $raw = self::unwrapRow($raw);
+        if ($raw === []) {
+            return $out;
+        }
+
+        return array_merge($out, array_intersect_key($raw, $out));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function unwrapRow(mixed $raw): array
+    {
+        if (! is_array($raw)) {
+            return [];
+        }
+        foreach (['defaults', 'settings', 'form', 'values', 'config', 'data'] as $wrap) {
+            if (isset($raw[$wrap]) && is_array($raw[$wrap]) && ! array_key_exists('badge_order', $raw) && ! array_key_exists('badge_icon', $raw)) {
+                $raw = $raw[$wrap];
+                break;
+            }
+        }
+        foreach ($raw as $k => $v) {
+            if (! is_array($v)) {
+                continue;
+            }
+            if (array_key_exists('value', $v)) {
+                $raw[$k] = $v['value'];
+            } elseif (array_key_exists('default', $v) && count($v) <= 4) {
+                $raw[$k] = $v['default'];
+            }
+        }
+
+        return $raw;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private static function writeG7(array $data): void
+    {
+        $id = 'custom-viewer_pdf';
+        try {
+            foreach (['g7_plugin_settings_set', 'g7_set_plugin_settings'] as $fn) {
+                if (function_exists($fn)) {
+                    $fn($id, $data);
+                }
+            }
+            if (! function_exists('app')) {
+                return;
+            }
+            foreach ([
+                'App\\Services\\PluginSettingsService',
+                'App\\Services\\Extension\\PluginSettingsService',
+                'App\\Extension\\PluginSettings',
+            ] as $cls) {
+                if (! class_exists($cls)) {
+                    continue;
+                }
+                $svc = app($cls);
+                if (! is_object($svc)) {
+                    continue;
+                }
+                foreach (['put', 'set', 'setSettings', 'save', 'update'] as $m) {
+                    if (method_exists($svc, $m)) {
+                        $svc->{$m}($id, $data);
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+        }
     }
 
     private static function clampBadgeOrder(mixed $value): int
