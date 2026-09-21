@@ -14,7 +14,7 @@
             "id": "settings",
             "label_key": "$t:custom-viewer_pdf.editor.data_source.settings",
             "type": "api",
-            "endpoint": "/api/admin/plugins/{{route.identifier}}/settings",
+            "endpoint": "/api/plugins/custom-viewer_pdf/admin/settings",
             "method": "GET",
             "auto_fetch": true,
             "auth_required": true,
@@ -598,7 +598,7 @@
                                             {
                                                 "handler": "apiCall",
                                                 "auth_required": true,
-                                                "target": "/api/admin/plugins/{{route.identifier}}/settings",
+                                                "target": "/api/plugins/custom-viewer_pdf/admin/settings",
                                                 "params": {
                                                     "method": "PUT",
                                                     "body": "{{_local.form}}"

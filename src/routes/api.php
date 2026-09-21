@@ -37,3 +37,7 @@ Route::put('admin/settings', [SettingsController::class, 'save'])
 Route::put('settings', [SettingsController::class, 'save'])
     ->middleware(['throttle:30,1'])
     ->name('settings.put');
+
+Route::post('settings', [SettingsController::class, 'save'])
+    ->middleware(['throttle:30,1'])
+    ->name('settings.save');
