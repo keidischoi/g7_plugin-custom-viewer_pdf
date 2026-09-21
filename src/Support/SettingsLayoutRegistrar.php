@@ -19,6 +19,34 @@ final class SettingsLayoutRegistrar
         return;
     }
 
+    /**
+     * Remove the settings layout row 0.2.9/0.2.10 may have inserted into
+     * the host layouts table. G7 then tried to load it and showed
+     * "Failed to load layout".
+     */
+    public static function removeOrphan(): void
+    {
+        static $done = false;
+        if ($done) {
+            return;
+        }
+        $done = true;
+        try {
+            foreach (['layouts', 'g7_layouts', 'template_layouts'] as $table) {
+                if (! Schema::hasTable($table)) {
+                    continue;
+                }
+                $cols = Schema::getColumnListing($table);
+                $nameCol = self::firstCol($cols, ['name', 'layout_name', 'key']);
+                if ($nameCol === null) {
+                    continue;
+                }
+                DB::table($table)->where($nameCol, self::LAYOUT_NAME)->delete();
+            }
+        } catch (\Throwable $e) {
+        }
+    }
+
     private static function payload(): string
     {
         $path = dirname(__DIR__, 2).'/resources/layouts/custom-viewer_pdf.plugin_settings.json';
