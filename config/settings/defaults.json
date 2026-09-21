@@ -1,30 +1,79 @@
 {
-  "_meta": {
-    "version": "1.0.0",
-    "description": "PDF 뷰어 플러그인 환경설정"
+  "badge_icon": {
+    "type": "string",
+    "default": "📄",
+    "frontend_schema": {
+      "expose": true
+    }
   },
-  "defaults": {
-    "badge_icon": "📄",
-    "badge_label": "PDF",
-    "default_scale": 1.15,
-    "wheel_scroll_px": 140,
-    "show_print": true,
-    "show_download": true,
-    "show_zoom": true,
-    "show_page_thumbs": true,
-    "show_file_rail": true,
-    "wheel_turns_page": false
+  "badge_label": {
+    "type": "string",
+    "default": "PDF",
+    "frontend_schema": {
+      "expose": true
+    }
   },
-  "frontend_schema": {
-    "badge_icon": { "expose": true },
-    "badge_label": { "expose": true },
-    "default_scale": { "expose": true },
-    "wheel_scroll_px": { "expose": true },
-    "show_print": { "expose": true },
-    "show_download": { "expose": true },
-    "show_zoom": { "expose": true },
-    "show_page_thumbs": { "expose": true },
-    "show_file_rail": { "expose": true },
-    "wheel_turns_page": { "expose": true }
+  "badge_order": {
+    "type": "number",
+    "default": 20,
+    "frontend_schema": {
+      "expose": true
+    }
+  },
+  "default_scale": {
+    "type": "number",
+    "default": 1.15,
+    "frontend_schema": {
+      "expose": true
+    }
+  },
+  "wheel_scroll_px": {
+    "type": "number",
+    "default": 140,
+    "frontend_schema": {
+      "expose": true
+    }
+  },
+  "show_print": {
+    "type": "boolean",
+    "default": true,
+    "frontend_schema": {
+      "expose": true
+    }
+  },
+  "show_download": {
+    "type": "boolean",
+    "default": true,
+    "frontend_schema": {
+      "expose": true
+    }
+  },
+  "show_zoom": {
+    "type": "boolean",
+    "default": true,
+    "frontend_schema": {
+      "expose": true
+    }
+  },
+  "show_page_thumbs": {
+    "type": "boolean",
+    "default": true,
+    "frontend_schema": {
+      "expose": true
+    }
+  },
+  "show_file_rail": {
+    "type": "boolean",
+    "default": true,
+    "frontend_schema": {
+      "expose": true
+    }
+  },
+  "wheel_turns_page": {
+    "type": "boolean",
+    "default": false,
+    "frontend_schema": {
+      "expose": true
+    }
   }
 }

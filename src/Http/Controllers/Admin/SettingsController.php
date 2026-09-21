@@ -33,6 +33,7 @@ class SettingsController extends Controller
         $html .= '<form method="post" action="'.e(url('/api/plugins/custom-viewer_pdf/admin/settings')).'">';
         $html .= '<label>배지 아이콘</label><input name="badge_icon" value="'.$h($s['badge_icon']).'">';
         $html .= '<label>배지 글자</label><input name="badge_label" value="'.$h($s['badge_label']).'">';
+        $html .= '<label>PDF 정렬 번호</label><input name="badge_order" type="number" step="1" min="0" max="999" value="'.$h($s['badge_order'] ?? 20).'">';
         $html .= '<label>기본 배율</label><input name="default_scale" type="number" step="0.05" min="0.5" max="3" value="'.$h($s['default_scale']).'">';
         $html .= '<label>휠 스크롤 양 (px, 작을수록 천천히)</label><input name="wheel_scroll_px" type="number" step="10" min="40" max="800" value="'.$h($s['wheel_scroll_px'] ?? 140).'">';
         $html .= '<div class="row"><input type="checkbox" name="show_print" value="1" '.$chk('show_print').'> 인쇄 버튼</div>';
@@ -57,9 +58,10 @@ class SettingsController extends Controller
         if (isset($payload['settings']) && is_array($payload['settings'])) {
             $payload = $payload['settings'];
         }
-        $saved = ViewerPdfSettings::put([
+        $saved = ViewerPdfSettings::put(array_merge($payload, [
             'badge_icon' => $payload['badge_icon'] ?? $request->input('badge_icon'),
             'badge_label' => $payload['badge_label'] ?? $request->input('badge_label'),
+            'badge_order' => $payload['badge_order'] ?? $request->input('badge_order'),
             'default_scale' => $payload['default_scale'] ?? $request->input('default_scale'),
             'wheel_scroll_px' => $payload['wheel_scroll_px'] ?? $request->input('wheel_scroll_px'),
             'show_print' => $payload['show_print'] ?? $request->boolean('show_print'),
@@ -68,7 +70,7 @@ class SettingsController extends Controller
             'show_page_thumbs' => $payload['show_page_thumbs'] ?? $request->boolean('show_page_thumbs'),
             'show_file_rail' => $payload['show_file_rail'] ?? $request->boolean('show_file_rail'),
             'wheel_turns_page' => $payload['wheel_turns_page'] ?? $request->boolean('wheel_turns_page'),
-        ]);
+        ]));
 
         if ($request->wantsJson()) {
             return response()->json(['ok' => true, 'settings' => $saved]);

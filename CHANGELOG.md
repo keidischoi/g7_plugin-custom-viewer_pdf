@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.9] - 2026-09-21
+
+### Added
+- Settings page `badge_order` (default 20, 0–999; lower appears higher) published as `window.__cdpViewerOrder['custom-viewer_pdf']`
+
+### Fixed
+- Expose `badge_order` in G7 `defaults.json` schema so the admin settings form renders **PDF 정렬 번호**
+
 ## [0.2.8] - 2026-09-20
 
 ### Fixed

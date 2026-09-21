@@ -27,6 +27,12 @@
       "label": "$t:settings.badge_label.label",
       "hint": "$t:settings.badge_label.hint"
     },
+    "badge_order": {
+      "type": "number",
+      "default": 20,
+      "label": "$t:settings.badge_order.label",
+      "hint": "$t:settings.badge_order.hint"
+    },
     "default_scale": {
       "type": "number",
       "default": 1.15,

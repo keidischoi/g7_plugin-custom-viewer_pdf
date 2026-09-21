@@ -9,6 +9,7 @@ final class ViewerPdfSettings
         return [
             'badge_label' => 'PDF',
             'badge_icon' => '📄',
+            'badge_order' => 20,
             'show_print' => true,
             'show_download' => true,
             'show_page_thumbs' => true,
@@ -48,10 +49,17 @@ final class ViewerPdfSettings
                 if (isset($raw['settings']) && is_array($raw['settings'])) {
                     $raw = $raw['settings'];
                 }
+                foreach ($raw as $k => $v) {
+                    if (is_array($v) && array_key_exists('default', $v)) {
+                        $raw[$k] = $v['default'];
+                    }
+                }
                 $out = array_merge($out, array_intersect_key($raw, $out));
             } catch (\Throwable $e) {
             }
         }
+
+        $out['badge_order'] = self::clampBadgeOrder($out['badge_order'] ?? 20);
 
         return $out;
     }
@@ -131,8 +139,14 @@ final class ViewerPdfSettings
         $next['default_scale'] = max(0.5, min(3.0, $scale ?: 1.15));
         $step = (int) ($next['wheel_scroll_px'] ?? 140);
         $next['wheel_scroll_px'] = max(40, min(800, $step ?: 140));
+        $next['badge_order'] = self::clampBadgeOrder($next['badge_order'] ?? 20);
         file_put_contents(self::path(), json_encode($next, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
 
         return $next;
+    }
+
+    private static function clampBadgeOrder(mixed $value): int
+    {
+        return max(0, min(999, (int) $value));
     }
 }

@@ -16,7 +16,6 @@ final class SettingsLayoutRegistrar
 
     public static function ensure(): void
     {
-        return;
         try {
             $json = self::payload();
             if ($json === '') {
