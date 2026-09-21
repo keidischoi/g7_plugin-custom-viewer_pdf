@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.8] - 2026-09-20
+
+### Fixed
+- PDF stage/scroller no longer uses a hardcoded black `#111` background
+- Viewer chrome (page rail, nav, zoom) follows the host light/dark theme
+- Theme detection also reads `data-theme`, `color-scheme`, page background, and `prefers-color-scheme`
+- Do not mount Chrome's native PDF iframe until pdf.js fails, so the themed stage is not covered by a black viewer
+
 ## [0.2.7] - 2026-09-20
 
 ### Fixed

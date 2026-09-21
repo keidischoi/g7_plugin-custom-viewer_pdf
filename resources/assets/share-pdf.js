@@ -1,4 +1,4 @@
-/*! custom-viewer_pdf 0.2.7 share PDF viewer (plugin; host=custom-digital_product) */
+/*! custom-viewer_pdf 0.2.8 share PDF viewer (plugin; host=custom-digital_product) */
 (function () {
   if (window.__cdpPdf) return;
 
@@ -121,22 +121,118 @@
     return out;
   }
 
+  function hasClass(el, name) {
+    try { return !!(el && el.classList && el.classList.contains(name)); } catch (e) { return false; }
+  }
+
+  function themeAttr(el) {
+    if (!el || !el.getAttribute) return '';
+    return String(el.getAttribute('data-theme') || el.getAttribute('data-bs-theme') || el.getAttribute('data-color-scheme') || '').toLowerCase();
+  }
+
+  function parseRgb(color) {
+    if (!color) return null;
+    var s = String(color).trim();
+    var m = s.match(/^rgba?\(\s*([\d.]+)\s*[,\/\s]\s*([\d.]+)\s*[,\/\s]\s*([\d.]+)/i);
+    if (m) return { r: Number(m[1]), g: Number(m[2]), b: Number(m[3]) };
+    m = s.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+    if (!m) return null;
+    var h = m[1];
+    if (h.length === 3) h = h.charAt(0) + h.charAt(0) + h.charAt(1) + h.charAt(1) + h.charAt(2) + h.charAt(2);
+    return { r: parseInt(h.slice(0, 2), 16), g: parseInt(h.slice(2, 4), 16), b: parseInt(h.slice(4, 6), 16) };
+  }
+
+  function isTransparent(color) {
+    var s = String(color || '').replace(/\s+/g, '').toLowerCase();
+    return !s || s === 'transparent' || s === 'rgba(0,0,0,0)';
+  }
+
+  function isDarkColor(color) {
+    var rgb = parseRgb(color);
+    if (!rgb) return null;
+    return ((0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255) < 0.45;
+  }
+
+  function clampByte(n) {
+    n = Math.round(Number(n) || 0);
+    if (n < 0) return 0;
+    if (n > 255) return 255;
+    return n;
+  }
+
+  function rgbCss(rgb) {
+    return 'rgb(' + clampByte(rgb.r) + ', ' + clampByte(rgb.g) + ', ' + clampByte(rgb.b) + ')';
+  }
+
+  function shiftRgb(rgb, delta) {
+    return { r: rgb.r + delta, g: rgb.g + delta, b: rgb.b + delta };
+  }
+
+  function hostSurfaceRgb() {
+    try {
+      var els = [document.body, document.documentElement];
+      for (var i = 0; i < els.length; i++) {
+        if (!els[i]) continue;
+        var bg = getComputedStyle(els[i]).backgroundColor;
+        if (isTransparent(bg)) continue;
+        var rgb = parseRgb(bg);
+        if (rgb) return rgb;
+      }
+    } catch (e) {}
+    return null;
+  }
+
   function isDarkTheme() {
     try {
-      return !!(document.documentElement.classList.contains('dark') || document.body.classList.contains('dark'));
+      var root = document.documentElement;
+      var body = document.body;
+      var els = [root, body];
+      for (var i = 0; i < els.length; i++) {
+        var el = els[i];
+        if (!el) continue;
+        if (hasClass(el, 'dark') || hasClass(el, 'theme-dark') || hasClass(el, 'g7-dark')) return true;
+        if (hasClass(el, 'light') || hasClass(el, 'theme-light') || hasClass(el, 'g7-light')) return false;
+        var t = themeAttr(el);
+        if (t === 'dark') return true;
+        if (t === 'light') return false;
+      }
+      var scheme = '';
+      try { scheme = String(getComputedStyle(root).colorScheme || '').toLowerCase(); } catch (e1) {}
+      if (scheme.indexOf('dark') !== -1 && scheme.indexOf('light') === -1) return true;
+      if (scheme.indexOf('light') !== -1 && scheme.indexOf('dark') === -1) return false;
+      var surface = hostSurfaceRgb();
+      if (surface) {
+        var darkBg = isDarkColor(rgbCss(surface));
+        if (darkBg != null) return darkBg;
+      }
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return true;
+      return false;
     } catch (e) {
-      return true;
+      return false;
     }
   }
 
   function themePalette() {
-    return isDarkTheme() ? {
+    var dark = isDarkTheme();
+    var pal = dark ? {
+      dark: true,
       overlayBg: 'rgba(0,0,0,.72)', panelBg: '#111827', text: '#f3f4f6', muted: '#9ca3af',
-      border: '#374151', btnBg: '#374151', btnText: '#f9fafb', railBg: '#0b1220', canvasBg: '#1f2937'
+      border: '#374151', btnBg: '#374151', btnText: '#f9fafb', railBg: '#0b1220', canvasBg: '#1f2937',
+      chromeBg: 'rgba(17,24,39,.62)', chromeSolid: 'rgba(17,24,39,.88)', chromeText: '#f9fafb',
+      thumbRailBg: 'rgba(15,23,42,.45)', fileThumbBg: 'rgba(31,41,55,.95)', fileThumbText: '#f9fafb'
     } : {
+      dark: false,
       overlayBg: 'rgba(15,23,42,.55)', panelBg: '#fff', text: '#111827', muted: '#6b7280',
-      border: '#e5e7eb', btnBg: '#111827', btnText: '#fff', railBg: '#f3f4f6', canvasBg: '#e5e7eb'
+      border: '#e5e7eb', btnBg: '#111827', btnText: '#fff', railBg: '#f3f4f6', canvasBg: '#e5e7eb',
+      chromeBg: 'rgba(255,255,255,.86)', chromeSolid: 'rgba(255,255,255,.94)', chromeText: '#111827',
+      thumbRailBg: 'rgba(255,255,255,.78)', fileThumbBg: '#fff', fileThumbText: '#111827'
     };
+    var host = hostSurfaceRgb();
+    if (host) {
+      pal.canvasBg = rgbCss(shiftRgb(host, dark ? 12 : -12));
+      pal.railBg = pal.canvasBg;
+    }
+    return pal;
   }
 
   function collectDomPdfFiles() {
@@ -522,10 +618,11 @@
       if (state.ui.pageWrap) state.ui.pageWrap.style.display = 'none';
       var old = host.querySelector('iframe[data-cdp-pdf-frame]');
       if (old && old.parentNode) old.parentNode.removeChild(old);
+      var pal = (state.ui && state.ui.palette) || themePalette();
       var frame = document.createElement('iframe');
       frame.setAttribute('data-cdp-pdf-frame', '1');
       frame.src = url;
-      frame.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff;z-index:1;';
+      frame.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;background:' + pal.canvasBg + ';color-scheme:' + (pal.dark ? 'dark' : 'light') + ';z-index:1;';
       host.appendChild(frame);
     } catch (e) {}
   }
@@ -562,8 +659,6 @@
     setStatus((file.file_name || 'PDF') + ' 불러오는 중…');
     state.disposed = false;
     bumpRenderGens();
-    showIframeFallback(url);
-    setStatus(file.file_name || 'PDF');
     loadPdfJs().then(function (pdfjsLib) {
       if (state.disposed) return null;
       return openPdfDocument(pdfjsLib, url);
@@ -588,6 +683,7 @@
       }
     }).catch(function () {
       setStatus(file.file_name || 'PDF');
+      showIframeFallback(url);
     });
   }
 
@@ -633,7 +729,7 @@
     }, { passive: false });
     var panel = document.createElement('div');
     panel.setAttribute('data-cdp-pdf-panel', '1');
-    panel.style.cssText = 'width:min(1120px,98%);height:min(780px,94vh);background:' + pal.panelBg + ';border-radius:12px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.45);color:' + pal.text;
+    panel.style.cssText = 'width:min(1120px,98%);height:min(780px,94vh);background:' + pal.panelBg + ';border-radius:12px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.45);color:' + pal.text + ';color-scheme:' + (pal.dark ? 'dark' : 'light');
     var bar = document.createElement('div');
     bar.style.cssText = 'display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid ' + pal.border + ';flex-shrink:0';
     var title = document.createElement('div');
@@ -704,7 +800,7 @@
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.title = f.file_name || ('PDF ' + (i + 1));
-      btn.style.cssText = 'width:88px;min-height:72px;padding:8px 6px;border-radius:10px;border:0;background:rgba(17,24,39,.88);color:#fff;cursor:pointer;font-size:11px;line-height:1.3;word-break:break-all';
+      btn.style.cssText = 'width:88px;min-height:72px;padding:8px 6px;border-radius:10px;border:1px solid ' + pal.border + ';background:' + pal.fileThumbBg + ';color:' + pal.fileThumbText + ';cursor:pointer;font-size:11px;line-height:1.3;word-break:break-all';
       btn.innerHTML = '<div style="font-size:20px;line-height:1">📄</div><div style="margin-top:6px">' +
         String(f.file_name || ('PDF ' + (i + 1))).replace(/</g, '') + '</div>';
       btn.addEventListener('click', function () {
@@ -721,7 +817,7 @@
     railDown.addEventListener('click', function (e) { e.preventDefault(); scrollRailBy(1); });
     var pageThumbs = document.createElement('div');
     pageThumbs.setAttribute('data-cdp-page-thumbs', '1');
-    pageThumbs.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px;overflow-x:hidden;overflow-y:auto;scrollbar-width:thin;background:rgba(17,24,39,.28);border-radius:10px;flex:1;min-height:0;height:100%;max-height:100%;box-sizing:border-box;';
+    pageThumbs.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px;overflow-x:hidden;overflow-y:auto;scrollbar-width:thin;background:' + pal.thumbRailBg + ';border:1px solid ' + pal.border + ';border-radius:10px;flex:1;min-height:0;height:100%;max-height:100%;box-sizing:border-box;';
     var pageThumbBtns = [];
     function scrollThumbsToActive() {
       var btn = pageThumbBtns[state.page - 1];
@@ -836,10 +932,11 @@
     applyRailCollapsed(true);
     rail.style.display = 'flex';
     var stage = document.createElement('div');
-    stage.style.cssText = 'flex:1;overflow:hidden;background:#111;display:flex;min-height:0;position:relative';
+    stage.setAttribute('data-cdp-pdf-stage', '1');
+    stage.style.cssText = 'flex:1;overflow:hidden;background:' + pal.canvasBg + ';display:flex;min-height:0;position:relative';
     var scroller = document.createElement('div');
     scroller.setAttribute('data-cdp-pdf-scroller', '1');
-    scroller.style.cssText = 'flex:1;min-width:0;min-height:0;overflow-x:hidden;overflow-y:scroll;display:flex;flex-direction:column;align-items:center;';
+    scroller.style.cssText = 'flex:1;min-width:0;min-height:0;overflow-x:hidden;overflow-y:scroll;display:flex;flex-direction:column;align-items:center;background:' + pal.canvasBg + ';';
     scroller.addEventListener('scroll', requestSyncFromScroll, { passive: true });
     var pageWrap = document.createElement('div');
     pageWrap.className = 'cdp-pdf-page';
@@ -864,18 +961,18 @@
     var MAG_MINUS = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/><path d="M8 11h6"/></svg>';
     var MAG_PLUS = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/><path d="M11 8v6M8 11h6"/></svg>';
     var pageNav = document.createElement('div');
-    pageNav.style.cssText = 'position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:9999px;background:rgba(17,24,39,.55);z-index:5;opacity:.38;transition:opacity .2s ease';
+    pageNav.style.cssText = 'position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:9999px;background:' + pal.chromeBg + ';color:' + pal.chromeText + ';border:1px solid ' + pal.border + ';z-index:5;opacity:.38;transition:opacity .2s ease';
     function pill(html, title, fn) {
       var b = document.createElement('button');
       b.type = 'button';
       b.title = title;
       b.innerHTML = html;
-      b.style.cssText = 'min-width:32px;height:32px;border:0;border-radius:9999px;background:transparent;color:#fff;cursor:pointer;display:inline-flex;align-items:center;justify-content:center';
+      b.style.cssText = 'min-width:32px;height:32px;border:0;border-radius:9999px;background:transparent;color:' + pal.chromeText + ';cursor:pointer;display:inline-flex;align-items:center;justify-content:center';
       b.addEventListener('click', function (e) { e.preventDefault(); fn(); });
       return b;
     }
     var pageLabel = document.createElement('span');
-    pageLabel.style.cssText = 'font-size:13px;color:#fff;min-width:56px;text-align:center';
+    pageLabel.style.cssText = 'font-size:13px;color:' + pal.chromeText + ';min-width:56px;text-align:center';
     pageNav.appendChild(pill('‹', '이전 페이지', function () { if (state.page > 1) turnPage(state.page - 1); }));
     pageNav.appendChild(pageLabel);
     pageNav.appendChild(pill('›', '다음 페이지', function () { if (state.page < state.pageCount) turnPage(state.page + 1); }));
@@ -924,7 +1021,7 @@
       });
     }
     var zoomBox = document.createElement('div');
-    zoomBox.style.cssText = 'position:absolute;right:14px;bottom:18px;display:flex;flex-direction:column;align-items:center;gap:4px;z-index:5;opacity:.38;transition:opacity .2s ease;padding:6px;border-radius:12px;background:rgba(17,24,39,.82);box-shadow:0 4px 14px rgba(0,0,0,.35)';
+    zoomBox.style.cssText = 'position:absolute;right:14px;bottom:18px;display:flex;flex-direction:column;align-items:center;gap:4px;z-index:5;opacity:.38;transition:opacity .2s ease;padding:6px;border-radius:12px;background:' + pal.chromeSolid + ';color:' + pal.chromeText + ';border:1px solid ' + pal.border + ';box-shadow:0 4px 14px rgba(0,0,0,.18)';
     var DL_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M5 21h14"/></svg>';
     function downloadCurrent() {
       var file = (state.modalFiles || [])[state.currentIdx] || {};
@@ -972,7 +1069,7 @@
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
     state.modal = overlay;
-    state.ui = { status: status, canvas: canvas, pageLabel: pageLabel, paintThumbs: paintThumbs, paintPageActive: paintPageActive, buildPageThumbs: buildPageThumbs, panel: panel, pageWrap: pageWrap, textLayer: textLayer, stage: stage, scroller: scroller, pageThumbs: pageThumbs, _scrollSyncBound: true };
+    state.ui = { status: status, canvas: canvas, pageLabel: pageLabel, paintThumbs: paintThumbs, paintPageActive: paintPageActive, buildPageThumbs: buildPageThumbs, panel: panel, pageWrap: pageWrap, textLayer: textLayer, stage: stage, scroller: scroller, pageThumbs: pageThumbs, palette: pal, _scrollSyncBound: true };
     document.addEventListener('fullscreenchange', function () {
       var on = !!(document.fullscreenElement || document.webkitFullscreenElement);
       fsBtn.innerHTML = on ? FS_OUT : FS_IN;
@@ -1057,7 +1154,8 @@
     supported: ['pdf'],
     viewable: ['pdf'],
     listable: ['pdf'],
-    files: function () { return (state.files || []).slice(); }
+    files: function () { return (state.files || []).slice(); },
+    theme: { isDark: isDarkTheme, palette: themePalette }
   };
 
   function tick() {

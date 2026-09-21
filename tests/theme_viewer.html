@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>PDF viewer theme fixture</title>
+  <style>
+    html, body { margin: 0; min-height: 100%; }
+    body.theme-light { background: #f3f4f6; color: #111827; }
+    html.dark, body.theme-dark { background: #111827; color: #f3f4f6; }
+    .toolbar { padding: 16px; font: 14px/1.4 sans-serif; }
+    button { margin-right: 8px; padding: 8px 12px; }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button id="open">PDF 미리보기</button>
+    <a id="sample" href="theme_sample.pdf" data-file-name="theme_sample.pdf">theme_sample.pdf</a>
+    <span id="report"></span>
+  </div>
+  <script src="../resources/assets/share-pdf.js"></script>
+  <script>
+    (function () {
+      var q = new URLSearchParams(location.search);
+      var theme = q.get('theme') === 'dark' ? 'dark' : 'light';
+      document.documentElement.classList.toggle('dark', theme === 'dark');
+      document.body.className = theme === 'dark' ? 'theme-dark' : 'theme-light';
+      document.body.setAttribute('data-theme', theme);
+      function report() {
+        var stage = document.querySelector('[data-cdp-pdf-stage]');
+        var scroller = document.querySelector('[data-cdp-pdf-scroller]');
+        var pal = window.__cdpPdf && window.__cdpPdf.theme && window.__cdpPdf.theme.palette();
+        var el = document.getElementById('report');
+        if (!el) return;
+        el.textContent = JSON.stringify({
+          theme: theme,
+          dark: !!(window.__cdpPdf && window.__cdpPdf.theme && window.__cdpPdf.theme.isDark()),
+          canvasBg: pal && pal.canvasBg,
+          stageBg: stage ? getComputedStyle(stage).backgroundColor : null,
+          scrollerBg: scroller ? getComputedStyle(scroller).backgroundColor : null
+        });
+      }
+      function openViewer() {
+        try {
+          window.__cdpPdf.run({
+            files: [{ file_name: 'theme_sample.pdf', preview_url: 'theme_sample.pdf', download_url: 'theme_sample.pdf', exists: true }]
+          });
+          window.__cdpPdf.open(0);
+        } catch (e) {}
+        setTimeout(report, 80);
+      }
+      document.getElementById('open').addEventListener('click', openViewer);
+      if (q.get('open') !== '0') openViewer();
+    })();
+  </script>
+</body>
+</html>
