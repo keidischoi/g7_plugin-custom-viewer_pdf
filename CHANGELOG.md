@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.12] - 2026-09-21
+
+### Fixed
+- Remove `plugin.json` `layouts: custom-viewer_pdf.plugin_settings` so G7 install/admin no longer shows **Failed to load layout**
+- Stop intercepting `core.layout.get/find/load/resolve`
+- Delete the orphaned settings layout row 0.2.9/0.2.10 may have written to the host `layouts` table
+
 ## [0.2.11] - 2026-09-21
 
 ### Fixed

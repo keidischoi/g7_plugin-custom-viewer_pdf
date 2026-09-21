@@ -15,7 +15,7 @@ use Plugins\Custom\ViewerPdf\Support\ViewerPdfSettings;
  */
 class ViewerPdfLayoutListener implements HookListenerInterface
 {
-    private const SCRIPT_SRC = '/api/plugins/custom-viewer_pdf/assets/share-pdf.js?v=0.2.11';
+    private const SCRIPT_SRC = '/api/plugins/custom-viewer_pdf/assets/share-pdf.js?v=0.2.12';
 
     private const SCRIPT_SRC_NEEDLE = '/api/plugins/custom-viewer_pdf/assets/share-pdf';
 
@@ -46,78 +46,13 @@ class ViewerPdfLayoutListener implements HookListenerInterface
                 'type' => 'filter',
                 'sync' => true,
             ],
-            'core.layout.get' => [
-                'method' => 'provideSettingsLayout',
-                'priority' => 20,
-                'type' => 'filter',
-                'sync' => true,
-            ],
-            'core.layout.find' => [
-                'method' => 'provideSettingsLayout',
-                'priority' => 20,
-                'type' => 'filter',
-                'sync' => true,
-            ],
-            'core.layout.load' => [
-                'method' => 'provideSettingsLayout',
-                'priority' => 20,
-                'type' => 'filter',
-                'sync' => true,
-            ],
-            'core.layout.resolve' => [
-                'method' => 'provideSettingsLayout',
-                'priority' => 20,
-                'type' => 'filter',
-                'sync' => true,
-            ],
         ];
-    }
-
-    public function provideSettingsLayout(mixed $layout = null, mixed $name = null, mixed $templateId = null): mixed
-    {
-        $needle = 'custom-viewer_pdf.plugin_settings';
-        $hay = strtolower((string) json_encode([$layout, $name], JSON_UNESCAPED_UNICODE));
-        $isTarget = (is_string($name) && str_contains($name, $needle))
-            || (is_array($layout) && str_contains((string) ($layout['layout_name'] ?? $layout['name'] ?? ''), $needle))
-            || str_contains($hay, $needle);
-        if (! $isTarget) {
-            return $layout;
-        }
-        $json = $this->settingsLayoutPayload();
-        if ($json === null) {
-            return $layout;
-        }
-
-        return is_array($layout) ? array_merge($layout, $json) : $json;
-    }
-
-    private function settingsLayoutPayload(): ?array
-    {
-        $paths = [
-            dirname(__DIR__, 2).'/resources/layouts/custom-viewer_pdf.plugin_settings.json',
-            dirname(__DIR__, 2).'/resources/layouts/admin/plugin_settings.json',
-        ];
-        foreach ($paths as $path) {
-            if (! is_file($path)) {
-                continue;
-            }
-            $data = json_decode((string) file_get_contents($path), true);
-            if (! is_array($data)) {
-                continue;
-            }
-            $data['layout_name'] = 'custom-viewer_pdf.plugin_settings';
-            $data['name'] = 'custom-viewer_pdf.plugin_settings';
-
-            return $data;
-        }
-
-        return null;
     }
 
     public function handle(...$args): void
     {
         try {
-            \Plugins\Custom\ViewerPdf\Support\SettingsLayoutRegistrar::ensure();
+            \Plugins\Custom\ViewerPdf\Support\SettingsLayoutRegistrar::removeOrphan();
         } catch (\Throwable $e) {
         }
     }
@@ -125,6 +60,7 @@ class ViewerPdfLayoutListener implements HookListenerInterface
     public function filterChildLayout(mixed $childLayout = null, mixed $parentLayout = null): mixed
     {
         try {
+            \Plugins\Custom\ViewerPdf\Support\SettingsLayoutRegistrar::removeOrphan();
             return is_array($childLayout) ? $this->apply($childLayout) : $childLayout;
         } catch (\Throwable $e) {
             return $childLayout;
