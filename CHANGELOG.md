@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.15] - 2026-09-21
+
+### Fixed
+- Admin settings 404 (`template_id=1, name=custom-viewer_pdf.plugin_settings`). G7 registers `admin/plugin_settings.json` as `{identifier}.{layout_name}`, so `layout_name` must stay `plugin_settings`. 0.2.14 used the full name and G7 stored `custom-viewer_pdf.custom-viewer_pdf.plugin_settings`.
+- Drop extra admin JSON files that `registerPluginLayouts()` would also prefix and sync.
+- Re-register the settings row on plugin activate/upgrade using `template_layouts` (`source_type=plugin`).
+
 ## [0.2.14] - 2026-09-21
 
 ### Fixed

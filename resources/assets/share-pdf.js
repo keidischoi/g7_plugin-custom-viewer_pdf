@@ -1,4 +1,4 @@
-/*! custom-viewer_pdf 0.2.14 share PDF viewer (plugin; host=custom-digital_product) */
+/*! custom-viewer_pdf 0.2.15 share PDF viewer (plugin; host=custom-digital_product) */
 (function () {
   function badgeRank(el) {
     var id = '';
