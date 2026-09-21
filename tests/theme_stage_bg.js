@@ -27,6 +27,8 @@ expect(src.indexOf("background:' + pal.chromeBg") !== -1, 'page nav uses themed 
 expect(src.indexOf("background:' + pal.chromeSolid") !== -1, 'zoom box uses themed chrome');
 expect(src.indexOf("background:' + pal.thumbRailBg") !== -1, 'page thumbs use themed rail');
 expect(src.indexOf('theme: { isDark: isDarkTheme, palette: themePalette }') !== -1, 'theme helpers are exported');
+expect(!/bumpRenderGens\(\);\s*showIframeFallback\(url\);/.test(src), 'native iframe is not shown before pdf.js');
+expect(src.indexOf('showIframeFallback(url);') !== -1, 'iframe fallback still exists for pdf.js failure');
 
 if (process.exitCode) {
   console.error('theme_stage_bg failed');

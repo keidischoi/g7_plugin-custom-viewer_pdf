@@ -618,10 +618,11 @@
       if (state.ui.pageWrap) state.ui.pageWrap.style.display = 'none';
       var old = host.querySelector('iframe[data-cdp-pdf-frame]');
       if (old && old.parentNode) old.parentNode.removeChild(old);
+      var pal = (state.ui && state.ui.palette) || themePalette();
       var frame = document.createElement('iframe');
       frame.setAttribute('data-cdp-pdf-frame', '1');
       frame.src = url;
-      frame.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff;z-index:1;';
+      frame.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;background:' + pal.canvasBg + ';color-scheme:' + (pal.dark ? 'dark' : 'light') + ';z-index:1;';
       host.appendChild(frame);
     } catch (e) {}
   }
@@ -658,8 +659,6 @@
     setStatus((file.file_name || 'PDF') + ' 불러오는 중…');
     state.disposed = false;
     bumpRenderGens();
-    showIframeFallback(url);
-    setStatus(file.file_name || 'PDF');
     loadPdfJs().then(function (pdfjsLib) {
       if (state.disposed) return null;
       return openPdfDocument(pdfjsLib, url);
@@ -684,6 +683,7 @@
       }
     }).catch(function () {
       setStatus(file.file_name || 'PDF');
+      showIframeFallback(url);
     });
   }
 
@@ -1069,7 +1069,7 @@
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
     state.modal = overlay;
-    state.ui = { status: status, canvas: canvas, pageLabel: pageLabel, paintThumbs: paintThumbs, paintPageActive: paintPageActive, buildPageThumbs: buildPageThumbs, panel: panel, pageWrap: pageWrap, textLayer: textLayer, stage: stage, scroller: scroller, pageThumbs: pageThumbs, _scrollSyncBound: true };
+    state.ui = { status: status, canvas: canvas, pageLabel: pageLabel, paintThumbs: paintThumbs, paintPageActive: paintPageActive, buildPageThumbs: buildPageThumbs, panel: panel, pageWrap: pageWrap, textLayer: textLayer, stage: stage, scroller: scroller, pageThumbs: pageThumbs, palette: pal, _scrollSyncBound: true };
     document.addEventListener('fullscreenchange', function () {
       var on = !!(document.fullscreenElement || document.webkitFullscreenElement);
       fsBtn.innerHTML = on ? FS_OUT : FS_IN;
