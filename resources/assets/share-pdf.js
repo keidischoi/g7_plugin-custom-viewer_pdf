@@ -1,4 +1,4 @@
-/*! custom-viewer_pdf 0.2.18 share PDF viewer (plugin; host=custom-digital_product) */
+/*! custom-viewer_pdf 0.2.19 share PDF viewer (plugin; host=custom-digital_product) */
 (function () {
   function badgeRank(el) {
     var id = '';
@@ -1188,14 +1188,21 @@
         btn.style.boxShadow = on ? '0 8px 20px rgba(96,165,250,.35)' : '0 2px 8px rgba(0,0,0,.2)';
       });
       scrollThumbsToActive();
+      // If user jumped to a page beyond the initial 6, load that thumb (and nearby via scroll range).
+      if ((state.page || 1) > INITIAL_THUMB_LOAD) state._thumbsPastInitial = true;
       try { ensureThumbsRendered(); } catch (eEnsT) {}
     }
+    var INITIAL_THUMB_LOAD = 6;
     function thumbSlotHeight() {
       // 88px-wide thumb at ~0.18 scale ≈ portrait A4 ~114px + gap/cap
       return 122;
     }
-    function visibleThumbRange() {
+    function visibleThumbRange(forceInitial) {
       var total = pageThumbBtns.length || (state.pdfDoc && state.pdfDoc.numPages) || 1;
+      // First paint: only pages 1..6. Later scroll/nav uses viewport-based range.
+      if (forceInitial || !state._thumbsPastInitial) {
+        return { from: 1, to: Math.min(total, INITIAL_THUMB_LOAD) };
+      }
       var h = pageThumbs.clientHeight || 0;
       try {
         if (!h) h = pageThumbs.getBoundingClientRect().height || 0;
@@ -1205,18 +1212,18 @@
       var count = Math.max(1, Math.ceil(h / slot) + 2);
       var from = Math.max(1, first - 1);
       var to = Math.min(total, from + count);
-      // Always keep current page thumb warm
       var cur = state.page || 1;
       from = Math.min(from, cur);
       to = Math.max(to, cur);
       return { from: from, to: to };
     }
-    function ensureThumbsRendered() {
+    function ensureThumbsRendered(opts) {
+      opts = opts || {};
       if (!state.pdfDoc || state.disposed) return;
       var gen = state.thumbGen;
       var total = state.pdfDoc.numPages || 1;
       var flags = state.thumbRenderFlags || (state.thumbRenderFlags = {});
-      var range = visibleThumbRange();
+      var range = visibleThumbRange(!!opts.initial);
       function stillCurrent() {
         return !state.disposed && gen === state.thumbGen;
       }
@@ -1261,6 +1268,7 @@
       if (pageThumbs.getAttribute('data-cdp-thumb-lazy') === '1') return;
       pageThumbs.setAttribute('data-cdp-thumb-lazy', '1');
       pageThumbs.addEventListener('scroll', function () {
+        state._thumbsPastInitial = true;
         if (state._thumbLazyRaf) return;
         var raf = window.requestAnimationFrame || function (fn) { return setTimeout(fn, 16); };
         state._thumbLazyRaf = raf(function () {
@@ -1274,6 +1282,7 @@
       pageThumbs.innerHTML = '';
       pageThumbBtns = [];
       state.thumbRenderFlags = {};
+      state._thumbsPastInitial = false;
       if (!state.pdfDoc) return;
       var total = state.pdfDoc.numPages || 1;
       for (var i = 1; i <= total; i++) {
@@ -1294,11 +1303,11 @@
       }
       bindThumbLazyScroll();
       paintPageActive();
-      // Defer one frame so rail has real height before deciding how many to paint.
+      // Initial open: paint only first 6; slots 7+ stay "페이지 로드중" until scroll/need.
       var raf = window.requestAnimationFrame || function (fn) { return setTimeout(fn, 16); };
       raf(function () {
         if (state.disposed || gen !== state.thumbGen) return;
-        ensureThumbsRendered();
+        ensureThumbsRendered({ initial: true });
       });
     }
     var RAIL_OPEN = '<svg width="10" height="14" viewBox="0 0 10 14"><polyline points="3.5 2 7.5 7 3.5 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
