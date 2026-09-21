@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.13] - 2026-09-21
+
+### Fixed
+- Saved `badge_order` is no longer overwritten by G7 `getConfigValues()` defaults on the share page
+- Re-sort `#cdp_viewer_badge_stack` after publishing `window.__cdpViewerOrder` so the host skip-if-same-ids remount actually shows the new order
+
 ## [0.2.12] - 2026-09-21
 
 ### Fixed

@@ -37,6 +37,7 @@ final class ViewerPdfSettings
     public static function get(): array
     {
         $out = self::defaults();
+        $out = self::mergeRow($out, self::fromG7());
         foreach (self::candidateFiles() as $path) {
             if (!$path || !is_file($path)) {
                 continue;
@@ -47,7 +48,6 @@ final class ViewerPdfSettings
             } catch (\Throwable $e) {
             }
         }
-        $out = self::mergeRow($out, self::fromG7());
         $out['badge_order'] = self::clampBadgeOrder($out['badge_order'] ?? 20);
 
         return $out;

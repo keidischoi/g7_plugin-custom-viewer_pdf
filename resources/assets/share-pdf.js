@@ -1,6 +1,59 @@
-/*! custom-viewer_pdf 0.2.12 share PDF viewer (plugin; host=custom-digital_product) */
+/*! custom-viewer_pdf 0.2.13 share PDF viewer (plugin; host=custom-digital_product) */
 (function () {
-  if (window.__cdpPdf) return;
+  function sortHostBadgeStack() {
+    try {
+      var stack = document.getElementById('cdp_viewer_badge_stack');
+      if (!stack || !stack.children || stack.children.length < 2) return;
+      var kids = Array.prototype.slice.call(stack.children);
+      kids.sort(function (a, b) {
+        function rank(el) {
+          var id = '';
+          try { id = String(el.getAttribute('data-cdp-viewer-badge') || el.id || ''); } catch (e0) {}
+          try {
+            var vo = window.__cdpViewerOrder;
+            if (vo && typeof vo === 'object' && vo[id] != null && vo[id] !== '') {
+              var nVo = Number(vo[id]);
+              if (isFinite(nVo)) return nVo;
+            }
+          } catch (e1) {}
+          if (id === 'custom-viewer_pdf' || id.indexOf('viewer_pdf') !== -1) {
+            var p = Number((window.__cdpPdfSettings || {}).badge_order);
+            return isFinite(p) ? p : 20;
+          }
+          if (id === 'custom-viewer-drawings' || id.indexOf('drawings') !== -1) {
+            var d = Number((window.__cdpDrawingsSettings || {}).order_drawings);
+            return isFinite(d) ? d : 10;
+          }
+          if (id === 'custom-viewer3d' || id.indexOf('3d') !== -1) {
+            var ts = window.__cdp3dSettings || {};
+            var t = Number(ts.badge_order != null ? ts.badge_order : ts.order_3d);
+            return isFinite(t) ? t : 30;
+          }
+          return 90;
+        }
+        return rank(a) - rank(b);
+      });
+      kids.forEach(function (el) { stack.appendChild(el); });
+    } catch (eSort) {}
+  }
+
+  function publishPdfOrder(settings) {
+    settings = settings || window.__cdpPdfSettings || {};
+    window.__cdpViewerOrder = window.__cdpViewerOrder || {};
+    window.__cdpViewerOrder['custom-viewer_pdf'] = Number(settings.badge_order) || 20;
+    sortHostBadgeStack();
+  }
+
+  publishPdfOrder();
+  if (window.__cdpPdf) {
+    var already = 0;
+    var alreadyT = setInterval(function () {
+      already += 1;
+      publishPdfOrder();
+      if (already >= 20) clearInterval(alreadyT);
+    }, 250);
+    return;
+  }
 
   function pdfCfg() {
     var d = { badge_label: 'PDF', badge_icon: '📄', badge_order: 20, show_print: true, show_download: true, show_page_thumbs: true, show_file_rail: true, show_zoom: true, wheel_turns_page: true, wheel_scroll_px: 140, default_scale: 1.15 };
@@ -25,6 +78,13 @@
   var settings = pdfCfg();
   window.__cdpViewerOrder = window.__cdpViewerOrder || {};
   window.__cdpViewerOrder['custom-viewer_pdf'] = Number(settings.badge_order) || 20;
+  sortHostBadgeStack();
+  var orderTicks = 0;
+  var orderTimer = setInterval(function () {
+    orderTicks += 1;
+    publishPdfOrder(pdfCfg());
+    if (orderTicks >= 24) clearInterval(orderTimer);
+  }, 250);
 
   var PDFJS_CDN = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build';
   var state = {
