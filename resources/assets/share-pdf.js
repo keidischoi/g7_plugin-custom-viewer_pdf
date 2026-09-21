@@ -1,4 +1,4 @@
-/*! custom-viewer_pdf 0.2.15 share PDF viewer (plugin; host=custom-digital_product) */
+/*! custom-viewer_pdf 0.2.16 share PDF viewer (plugin; host=custom-digital_product) */
 (function () {
   function badgeRank(el) {
     var id = '';
@@ -123,11 +123,20 @@
       Object.keys(s).forEach(function (k) { d[k] = s[k]; });
       d.wheel_scroll_px = Number(d.wheel_scroll_px) || 140;
       d.default_scale = Number(d.default_scale) || 1.15;
-      d.badge_order = Number(d.badge_order) || 20;
       ['show_print','show_download','show_zoom','show_page_thumbs','show_file_rail','wheel_turns_page'].forEach(function (k) {
         d[k] = !(d[k] === false || d[k] === 0 || d[k] === '0' || d[k] === 'false');
       });
     } catch (e) {}
+    try {
+      window.__cdpViewerOrder = window.__cdpViewerOrder || {};
+      var n = Number(d.badge_order);
+      if (!isFinite(n)) n = 20;
+      n = Math.trunc(n);
+      if (n < 0) n = 0;
+      if (n > 999) n = 999;
+      d.badge_order = n;
+      window.__cdpViewerOrder['custom-viewer_pdf'] = n;
+    } catch (eOrd) {}
     return d;
   }
 

@@ -10,7 +10,7 @@
     "guide_item_2": "Toggle buttons to show or hide viewer controls.",
     "badge_icon": { "label": "Badge icon", "hint": "Emoji on the image badge" },
     "badge_label": { "label": "Badge label", "hint": "Text shown on hover" },
-    "badge_order": { "label": "PDF sort order", "hint": "Lower numbers appear higher. 0-999" },
+    "badge_order": { "label": "PDF 정렬 번호", "hint": "이 플러그인 배지만의 순서. 작을수록 위. 기본 20. 호스트는 window.__cdpViewerOrder['custom-viewer_pdf'] 로 받는다." },
     "default_scale": { "label": "Default scale", "hint": "0.5 to 3.0" },
     "wheel_scroll_px": { "label": "Wheel scroll (px)", "hint": "Smaller is slower" },
     "show_print": { "label": "Print button", "hint": "" },
