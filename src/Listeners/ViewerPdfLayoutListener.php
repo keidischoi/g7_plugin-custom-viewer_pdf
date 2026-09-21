@@ -4,6 +4,7 @@ namespace Plugins\Custom\ViewerPdf\Listeners;
 
 use App\Contracts\Extension\HookListenerInterface;
 use Plugins\Custom\ViewerPdf\Support\ModulePresence;
+use Plugins\Custom\ViewerPdf\Support\SettingsLayoutRegistrar;
 use Plugins\Custom\ViewerPdf\Support\ViewerPdfSettings;
 
 /**
@@ -15,7 +16,7 @@ use Plugins\Custom\ViewerPdf\Support\ViewerPdfSettings;
  */
 class ViewerPdfLayoutListener implements HookListenerInterface
 {
-    private const SCRIPT_SRC = '/api/plugins/custom-viewer_pdf/assets/share-pdf.js?v=0.2.13';
+    private const SCRIPT_SRC = '/api/plugins/custom-viewer_pdf/assets/share-pdf.js?v=0.2.14';
 
     private const SCRIPT_SRC_NEEDLE = '/api/plugins/custom-viewer_pdf/assets/share-pdf';
 
@@ -46,13 +47,60 @@ class ViewerPdfLayoutListener implements HookListenerInterface
                 'type' => 'filter',
                 'sync' => true,
             ],
+            'core.layout.get' => [
+                'method' => 'provideSettingsLayout',
+                'priority' => 20,
+                'type' => 'filter',
+                'sync' => true,
+            ],
+            'core.layout.find' => [
+                'method' => 'provideSettingsLayout',
+                'priority' => 20,
+                'type' => 'filter',
+                'sync' => true,
+            ],
+            'core.layout.load' => [
+                'method' => 'provideSettingsLayout',
+                'priority' => 20,
+                'type' => 'filter',
+                'sync' => true,
+            ],
+            'core.layout.resolve' => [
+                'method' => 'provideSettingsLayout',
+                'priority' => 20,
+                'type' => 'filter',
+                'sync' => true,
+            ],
         ];
+    }
+
+    /**
+     * Serve only custom-viewer_pdf.plugin_settings. Exact name match — do not
+     * json_encode other layouts (that used to rewrite unrelated pages).
+     */
+    public function provideSettingsLayout(mixed $layout = null, mixed $name = null, mixed $templateId = null): mixed
+    {
+        try {
+            SettingsLayoutRegistrar::ensure();
+        } catch (\Throwable $e) {
+        }
+
+        if (! $this->isSettingsLayoutRequest($layout, $name, $templateId)) {
+            return $layout;
+        }
+
+        $json = SettingsLayoutRegistrar::payloadArray();
+        if ($json === null) {
+            return $layout;
+        }
+
+        return $json;
     }
 
     public function handle(...$args): void
     {
         try {
-            \Plugins\Custom\ViewerPdf\Support\SettingsLayoutRegistrar::removeOrphan();
+            SettingsLayoutRegistrar::ensure();
         } catch (\Throwable $e) {
         }
     }
@@ -60,7 +108,8 @@ class ViewerPdfLayoutListener implements HookListenerInterface
     public function filterChildLayout(mixed $childLayout = null, mixed $parentLayout = null): mixed
     {
         try {
-            \Plugins\Custom\ViewerPdf\Support\SettingsLayoutRegistrar::removeOrphan();
+            SettingsLayoutRegistrar::ensure();
+
             return is_array($childLayout) ? $this->apply($childLayout) : $childLayout;
         } catch (\Throwable $e) {
             return $childLayout;
@@ -158,5 +207,25 @@ class ViewerPdfLayoutListener implements HookListenerInterface
         ];
 
         return $layout;
+    }
+
+    private function isSettingsLayoutRequest(mixed $layout, mixed $name, mixed $templateId = null): bool
+    {
+        $want = SettingsLayoutRegistrar::LAYOUT_NAME;
+        foreach ([$name, $layout, $templateId] as $arg) {
+            if (is_string($arg) && $arg === $want) {
+                return true;
+            }
+            if (! is_array($arg)) {
+                continue;
+            }
+            foreach (['layout_name', 'name', 'layout', 'key'] as $k) {
+                if (isset($arg[$k]) && is_string($arg[$k]) && $arg[$k] === $want) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }

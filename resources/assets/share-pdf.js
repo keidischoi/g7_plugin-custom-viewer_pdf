@@ -1,39 +1,99 @@
-/*! custom-viewer_pdf 0.2.13 share PDF viewer (plugin; host=custom-digital_product) */
+/*! custom-viewer_pdf 0.2.14 share PDF viewer (plugin; host=custom-digital_product) */
 (function () {
+  function badgeRank(el) {
+    var id = '';
+    try { id = String(el.getAttribute('data-cdp-viewer-badge') || el.id || ''); } catch (e0) {}
+    try {
+      var vo = window.__cdpViewerOrder;
+      if (vo && typeof vo === 'object' && vo[id] != null && vo[id] !== '') {
+        var nVo = Number(vo[id]);
+        if (isFinite(nVo)) return nVo;
+      }
+    } catch (e1) {}
+    if (id === 'custom-viewer_pdf' || id.indexOf('viewer_pdf') !== -1) {
+      var p = Number((window.__cdpPdfSettings || {}).badge_order);
+      return isFinite(p) ? p : 20;
+    }
+    if (id === 'custom-viewer-drawings' || id.indexOf('drawings') !== -1) {
+      var d = Number((window.__cdpDrawingsSettings || {}).order_drawings);
+      return isFinite(d) ? d : 10;
+    }
+    if (id === 'custom-viewer3d' || id.indexOf('3d') !== -1) {
+      var ts = window.__cdp3dSettings || {};
+      var t = Number(ts.badge_order != null ? ts.badge_order : ts.order_3d);
+      return isFinite(t) ? t : 30;
+    }
+    return 90;
+  }
+
+  function stackIsInteracting(stack) {
+    try {
+      if (stack.getAttribute('data-cdp-pdf-pointer') === '1') return true;
+      if (stack.matches(':hover') || stack.matches(':active') || stack.matches(':focus-within')) return true;
+      if (stack.querySelector(':hover, :active, :focus')) return true;
+    } catch (eHover) {}
+    return false;
+  }
+
+  function armBadgeStackClickGuard(stack) {
+    if (!stack || stack.getAttribute('data-cdp-pdf-click-guard') === '1') return;
+    stack.setAttribute('data-cdp-pdf-click-guard', '1');
+    var freezeTimer = 0;
+    function freeze() {
+      stack.setAttribute('data-cdp-pdf-pointer', '1');
+      if (freezeTimer) {
+        try { clearTimeout(freezeTimer); } catch (eT) {}
+      }
+      freezeTimer = setTimeout(function () {
+        freezeTimer = 0;
+        try { stack.removeAttribute('data-cdp-pdf-pointer'); } catch (eR) {}
+      }, 800);
+    }
+    try {
+      stack.addEventListener('pointerdown', freeze, true);
+      stack.addEventListener('mousedown', freeze, true);
+    } catch (eBind) {}
+    function wrapMove(method) {
+      var orig = stack[method];
+      if (typeof orig !== 'function') return;
+      stack[method] = function (node, ref) {
+        try {
+          if (stackIsInteracting(stack) && node && node.parentNode === stack) {
+            return node;
+          }
+        } catch (eW) {}
+        if (method === 'insertBefore') return orig.call(stack, node, ref);
+        return orig.call(stack, node);
+      };
+    }
+    wrapMove('appendChild');
+    wrapMove('insertBefore');
+  }
+
   function sortHostBadgeStack() {
     try {
       var stack = document.getElementById('cdp_viewer_badge_stack');
       if (!stack || !stack.children || stack.children.length < 2) return;
+      armBadgeStackClickGuard(stack);
+      if (stackIsInteracting(stack)) return;
       var kids = Array.prototype.slice.call(stack.children);
-      kids.sort(function (a, b) {
-        function rank(el) {
-          var id = '';
-          try { id = String(el.getAttribute('data-cdp-viewer-badge') || el.id || ''); } catch (e0) {}
-          try {
-            var vo = window.__cdpViewerOrder;
-            if (vo && typeof vo === 'object' && vo[id] != null && vo[id] !== '') {
-              var nVo = Number(vo[id]);
-              if (isFinite(nVo)) return nVo;
-            }
-          } catch (e1) {}
-          if (id === 'custom-viewer_pdf' || id.indexOf('viewer_pdf') !== -1) {
-            var p = Number((window.__cdpPdfSettings || {}).badge_order);
-            return isFinite(p) ? p : 20;
-          }
-          if (id === 'custom-viewer-drawings' || id.indexOf('drawings') !== -1) {
-            var d = Number((window.__cdpDrawingsSettings || {}).order_drawings);
-            return isFinite(d) ? d : 10;
-          }
-          if (id === 'custom-viewer3d' || id.indexOf('3d') !== -1) {
-            var ts = window.__cdp3dSettings || {};
-            var t = Number(ts.badge_order != null ? ts.badge_order : ts.order_3d);
-            return isFinite(t) ? t : 30;
-          }
-          return 90;
-        }
-        return rank(a) - rank(b);
+      var ranked = kids.map(function (el, i) {
+        return { el: el, rank: badgeRank(el), i: i };
       });
-      kids.forEach(function (el) { stack.appendChild(el); });
+      ranked.sort(function (a, b) {
+        var d = a.rank - b.rank;
+        return d !== 0 ? d : a.i - b.i;
+      });
+      var changed = false;
+      for (var i = 0; i < ranked.length; i++) {
+        if (ranked[i].el !== kids[i]) { changed = true; break; }
+      }
+      if (!changed) return;
+      for (var j = 0; j < ranked.length; j++) {
+        if (stack.children[j] !== ranked[j].el) {
+          stack.insertBefore(ranked[j].el, stack.children[j] || null);
+        }
+      }
     } catch (eSort) {}
   }
 

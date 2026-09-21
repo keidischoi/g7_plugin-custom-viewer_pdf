@@ -82,7 +82,5 @@
       "hint": "$t:settings.wheel_turns_page.hint"
     }
   },
-  "components": [],
-  "layout_name": "custom-viewer_pdf.plugin_settings",
-  "name": "custom-viewer_pdf.plugin_settings"
+  "components": []
 }

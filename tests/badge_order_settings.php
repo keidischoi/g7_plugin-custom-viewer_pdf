@@ -53,3 +53,13 @@ file_put_contents($settingsFile, json_encode(['badge_order' => 2000], JSON_PRETT
 expect(ViewerPdfSettings::get()['badge_order'] === 999, 'get() clamps stored value to 999');
 
 @unlink($settingsFile);
+
+require __DIR__.'/../src/Support/SettingsLayoutRegistrar.php';
+
+$layout = \Plugins\Custom\ViewerPdf\Support\SettingsLayoutRegistrar::payloadArray();
+expect(is_array($layout), 'settings layout payload is an array');
+expect(($layout['layout_name'] ?? '') === 'custom-viewer_pdf.plugin_settings', 'payload layout_name is custom-viewer_pdf.plugin_settings');
+expect(($layout['name'] ?? '') === 'custom-viewer_pdf.plugin_settings', 'payload name is custom-viewer_pdf.plugin_settings');
+expect(isset($layout['slots']['content']), 'payload has slots.content');
+expect(! isset($layout['init_actions']), 'payload has no snow init_actions');
+expect(strpos(json_encode($layout), 'form.schedules') === false, 'payload has no leftover snow schedules');

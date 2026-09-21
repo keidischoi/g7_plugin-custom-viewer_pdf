@@ -1,6 +1,7 @@
 {
     "version": "1.0.0",
-    "layout_name": "plugin_settings",
+    "layout_name": "custom-viewer_pdf.plugin_settings",
+    "name": "custom-viewer_pdf.plugin_settings",
     "permissions": [
         "core.plugins.update"
     ],
@@ -710,14 +711,5 @@
             "default": true
         }
     },
-    "init_actions": [
-        {
-            "handler": "setState",
-            "params": {
-                "target": "local",
-                "form.schedules": "{{Array.isArray(_local.form.schedules) ? _local.form.schedules : [{enabled:true,effect:(_local.form.effect ?? \"snow\"),intensity:(_local.form.intensity ?? 100),speed:(_local.form.speed ?? 100),opacity:(_local.form.opacity ?? 75),wind:(_local.form.wind ?? 0),wind_direction:(_local.form.wind_direction ?? \"none\"),color:(_local.form.color ?? \"#ffffff\"),start_date:(_local.form.schedule_start_date ?? \"\"),end_date:(_local.form.schedule_end_date ?? \"\"),start_time:(_local.form.schedule_start_time ?? \"\"),end_time:(_local.form.schedule_end_time ?? \"\"),timezone:(_local.form.schedule_timezone ?? \"Asia/Seoul\"),sun:(_local.form.schedule_days !== \"weekdays\"),mon:(_local.form.schedule_days !== \"weekends\"),tue:(_local.form.schedule_days !== \"weekends\"),wed:(_local.form.schedule_days !== \"weekends\"),thu:(_local.form.schedule_days !== \"weekends\"),fri:(_local.form.schedule_days !== \"weekends\"),sat:(_local.form.schedule_days !== \"weekdays\")}]}}"
-            }
-        }
-    ],
     "components": []
 }
