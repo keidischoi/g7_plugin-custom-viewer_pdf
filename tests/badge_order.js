@@ -14,6 +14,8 @@ function expect(cond, msg) {
 var src = fs.readFileSync(path.join(__dirname, '..', 'resources/assets/share-pdf.js'), 'utf8');
 expect(src.indexOf("window.__cdpViewerOrder = window.__cdpViewerOrder || {}") !== -1, 'boot initializes __cdpViewerOrder');
 expect(src.indexOf("window.__cdpViewerOrder['custom-viewer_pdf'] = Number(settings.badge_order) || 20") !== -1, 'boot publishes PDF badge_order');
+expect(src.indexOf('function sortHostBadgeStack()') !== -1, 'boot re-sorts host badge stack');
+expect(src.indexOf('if (window.__cdpPdf) return;') === -1, 'stale host-loaded share-pdf.js still publishes order');
 expect(/badge_order:\s*20/.test(src), 'pdfCfg default badge_order is 20');
 
 var defaults = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config/settings/defaults.json'), 'utf8'));
@@ -49,3 +51,4 @@ var php = fs.readFileSync(path.join(__dirname, '..', 'src/Support/ViewerPdfSetti
 expect(php.indexOf("'badge_order' => 20") !== -1, 'ViewerPdfSettings defaults include badge_order 20');
 expect(php.indexOf('clampBadgeOrder') !== -1, 'get/put clamp badge_order');
 expect(php.indexOf('$readingG7') !== -1, 'fromG7 is re-entrancy guarded');
+expect(php.indexOf('mergeRow($out, self::fromG7())') !== -1 && php.indexOf('mergeRow($out, self::fromG7())') < php.indexOf('candidateFiles()'), 'saved settings file wins over G7 defaults');
