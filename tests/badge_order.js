@@ -32,30 +32,32 @@ expect(ko.settings.badge_order.label === 'PDF 정렬 번호', 'ko label is PDF �
 var html = fs.readFileSync(path.join(__dirname, '..', 'resources/assets/settings.html'), 'utf8');
 expect(html.indexOf('name="badge_order"') !== -1 && html.indexOf('PDF 정렬 번호') !== -1, 'settings.html has PDF 정렬 번호');
 
-['resources/layouts/custom-viewer_pdf.plugin_settings.json', 'resources/layouts/admin/plugin_settings.json'].forEach(function (rel) {
-  var layout = fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
-  var parsed = JSON.parse(layout);
-  expect(layout.indexOf('field_badge_order') !== -1 && layout.indexOf('PDF 정렬 번호') !== -1, rel + ' has PDF 정렬 번호');
-  expect(layout.indexOf('/api/plugins/custom-viewer_pdf/admin/settings') !== -1, rel + ' saves via plugin settings API');
-  expect(layout.indexOf('/api/admin/plugins/') === -1, rel + ' does not use host admin settings API');
-  expect(parsed.layout_name === 'custom-viewer_pdf.plugin_settings', rel + ' layout_name matches G7 fetch');
-  expect(!parsed.init_actions, rel + ' has no leftover snow init_actions');
-});
+var layoutRel = 'resources/layouts/admin/plugin_settings.json';
+var layout = fs.readFileSync(path.join(__dirname, '..', layoutRel), 'utf8');
+var parsed = JSON.parse(layout);
+expect(layout.indexOf('field_badge_order') !== -1 && layout.indexOf('PDF 정렬 번호') !== -1, layoutRel + ' has PDF 정렬 번호');
+expect(layout.indexOf('/api/plugins/custom-viewer_pdf/admin/settings') !== -1, layoutRel + ' saves via plugin settings API');
+expect(layout.indexOf('/api/admin/plugins/') === -1, layoutRel + ' does not use host admin settings API');
+expect(parsed.layout_name === 'plugin_settings', 'G7 prefixes layout_name with the plugin identifier');
+expect(!parsed.init_actions, layoutRel + ' has no leftover snow init_actions');
+expect(!fs.existsSync(path.join(__dirname, '..', 'resources/layouts/custom-viewer_pdf.plugin_settings.json')), 'root layouts JSON is not registered by G7');
+expect(!fs.existsSync(path.join(__dirname, '..', 'resources/layouts/admin/plugin_settings.schema.json')), 'extra admin schema JSON is not registered as a layout');
+expect(!fs.existsSync(path.join(__dirname, '..', 'resources/layouts/admin/custom-viewer_pdf.plugin_settings.json')), 'extra prefixed admin JSON is not registered as a layout');
 
 var pluginJson = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'plugin.json'), 'utf8'));
-expect(pluginJson.version === '0.2.14', 'plugin.json is 0.2.14');
+expect(pluginJson.version === '0.2.15', 'plugin.json is 0.2.15');
 expect(!pluginJson.layouts, 'plugin.json does not declare a host layouts entry');
 
 var phpPlugin = fs.readFileSync(path.join(__dirname, '..', 'plugin.php'), 'utf8');
 expect(phpPlugin.indexOf('ViewerPdfSettings::get()') === -1, 'getConfigValues does not call ViewerPdfSettings::get (avoids 503 recursion)');
-expect(phpPlugin.indexOf('SettingsLayoutRegistrar::ensure()') === -1, 'plugin boot does not upsert layouts');
+expect(phpPlugin.indexOf('function getSettingsSchema') !== -1, 'plugin declares getSettingsSchema');
+expect(phpPlugin.indexOf('function activate') !== -1 && phpPlugin.indexOf('SettingsLayoutRegistrar::ensure()') !== -1, 'activate re-registers the settings layout');
+expect(phpPlugin.indexOf("'0.2.15'") !== -1, 'upgrade 0.2.15 re-registers the settings layout');
 
 var listener = fs.readFileSync(path.join(__dirname, '..', 'src/Listeners/ViewerPdfLayoutListener.php'), 'utf8');
-expect(listener.indexOf('core.layout.get') !== -1, 'listener serves settings layout via core.layout.get');
-expect(listener.indexOf('json_encode([$layout, $name]') === -1, 'settings layout match does not json_encode every layout');
+expect(listener.indexOf('core.layout.get') === -1, 'listener does not intercept core.layout.get');
 expect(listener.indexOf('removeOrphan') === -1, 'listener does not delete the settings layout row');
 expect(listener.indexOf('SettingsLayoutRegistrar::ensure()') !== -1, 'listener upserts settings layout once');
-expect(listener.indexOf('$arg === $want') !== -1, 'settings layout uses exact name match');
 
 var php = fs.readFileSync(path.join(__dirname, '..', 'src/Support/ViewerPdfSettings.php'), 'utf8');
 expect(php.indexOf("'badge_order' => 20") !== -1, 'ViewerPdfSettings defaults include badge_order 20');
@@ -65,7 +67,9 @@ expect(php.indexOf('mergeRow($out, self::fromG7())') !== -1 && php.indexOf('merg
 
 var registrar = fs.readFileSync(path.join(__dirname, '..', 'src/Support/SettingsLayoutRegistrar.php'), 'utf8');
 expect(registrar.indexOf('function removeOrphan') === -1, 'registrar no longer deletes the settings layout');
-expect(registrar.indexOf("unset($data['init_actions'])") !== -1, 'registrar strips leftover init_actions');
+expect(registrar.indexOf("unset($data['name'], $data['init_actions'])") !== -1, 'registrar strips leftover name/init_actions');
+expect(registrar.indexOf("BASE_LAYOUT_NAME = 'plugin_settings'") !== -1, 'file layout_name stays plugin_settings');
+expect(registrar.indexOf("LAYOUT_NAME = 'custom-viewer_pdf.plugin_settings'") !== -1, 'DB name is identifier.plugin_settings');
 
 function orderWouldMove(order, ranks) {
   var ranked = order.map(function (el, i) { return { el: el, rank: ranks[el], i: i }; });

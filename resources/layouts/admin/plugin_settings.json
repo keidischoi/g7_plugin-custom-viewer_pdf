@@ -1,7 +1,6 @@
 {
     "version": "1.0.0",
-    "layout_name": "custom-viewer_pdf.plugin_settings",
-    "name": "custom-viewer_pdf.plugin_settings",
+    "layout_name": "plugin_settings",
     "permissions": [
         "core.plugins.update"
     ],

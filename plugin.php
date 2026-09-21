@@ -3,6 +3,7 @@
 namespace Plugins\Custom\ViewerPdf;
 
 use App\Extension\AbstractPlugin;
+use Plugins\Custom\ViewerPdf\Support\SettingsLayoutRegistrar;
 
 /**
  * Thin Event-Hook PDF viewer plugin for custom-digital_product.
@@ -25,6 +26,28 @@ class Plugin extends AbstractPlugin
         ];
     }
 
+    public function activate(): bool
+    {
+        try {
+            SettingsLayoutRegistrar::ensure();
+        } catch (\Throwable $e) {
+        }
+
+        return parent::activate();
+    }
+
+    /**
+     * @return array<string, callable>
+     */
+    public function upgrades(): array
+    {
+        return [
+            '0.2.15' => static function (): void {
+                SettingsLayoutRegistrar::ensure();
+            },
+        ];
+    }
+
     public function getConfigValues(): array
     {
         return [
@@ -39,6 +62,89 @@ class Plugin extends AbstractPlugin
             'show_page_thumbs' => true,
             'show_file_rail' => true,
             'wheel_turns_page' => false,
+        ];
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    public function getSettingsSchema(): array
+    {
+        return [
+            'badge_icon' => [
+                'type' => 'string',
+                'default' => '📄',
+                'label' => ['ko' => '배지 아이콘', 'en' => 'Badge icon'],
+                'required' => false,
+            ],
+            'badge_label' => [
+                'type' => 'string',
+                'default' => 'PDF',
+                'label' => ['ko' => '배지 글자', 'en' => 'Badge label'],
+                'required' => false,
+            ],
+            'badge_order' => [
+                'type' => 'integer',
+                'min' => 0,
+                'max' => 999,
+                'default' => 20,
+                'label' => ['ko' => 'PDF 정렬 번호', 'en' => 'PDF sort order'],
+                'hint' => [
+                    'ko' => '작을수록 위에 표시됩니다. 0~999',
+                    'en' => 'Lower numbers appear higher. 0-999',
+                ],
+                'required' => false,
+            ],
+            'default_scale' => [
+                'type' => 'number',
+                'default' => 1.15,
+                'label' => ['ko' => '기본 배율', 'en' => 'Default scale'],
+                'required' => false,
+            ],
+            'wheel_scroll_px' => [
+                'type' => 'integer',
+                'min' => 40,
+                'max' => 800,
+                'default' => 140,
+                'label' => ['ko' => '휠 스크롤 양 (px)', 'en' => 'Wheel scroll (px)'],
+                'required' => false,
+            ],
+            'show_print' => [
+                'type' => 'boolean',
+                'default' => true,
+                'label' => ['ko' => '인쇄 버튼', 'en' => 'Print button'],
+                'required' => false,
+            ],
+            'show_download' => [
+                'type' => 'boolean',
+                'default' => true,
+                'label' => ['ko' => '다운로드 버튼', 'en' => 'Download button'],
+                'required' => false,
+            ],
+            'show_zoom' => [
+                'type' => 'boolean',
+                'default' => true,
+                'label' => ['ko' => '확대/축소', 'en' => 'Zoom'],
+                'required' => false,
+            ],
+            'show_page_thumbs' => [
+                'type' => 'boolean',
+                'default' => true,
+                'label' => ['ko' => '페이지 미리보기', 'en' => 'Page thumbnails'],
+                'required' => false,
+            ],
+            'show_file_rail' => [
+                'type' => 'boolean',
+                'default' => true,
+                'label' => ['ko' => '파일 목록 슬라이더', 'en' => 'File list rail'],
+                'required' => false,
+            ],
+            'wheel_turns_page' => [
+                'type' => 'boolean',
+                'default' => false,
+                'label' => ['ko' => '휠로 페이지 단위 이동', 'en' => 'Wheel changes page'],
+                'required' => false,
+            ],
         ];
     }
 }
