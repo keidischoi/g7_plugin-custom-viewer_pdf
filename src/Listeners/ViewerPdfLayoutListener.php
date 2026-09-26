@@ -16,7 +16,7 @@ use Plugins\Custom\ViewerPdf\Support\ViewerPdfSettings;
  */
 class ViewerPdfLayoutListener implements HookListenerInterface
 {
-    private const SCRIPT_SRC = '/api/plugins/custom-viewer_pdf/assets/share-pdf.js?v=0.2.20';
+    private const SCRIPT_SRC = '/api/plugins/custom-viewer_pdf/assets/share-pdf.js?v=0.2.21';
 
     private const SCRIPT_SRC_NEEDLE = '/api/plugins/custom-viewer_pdf/assets/share-pdf';
 
