@@ -1,4 +1,4 @@
-/*! custom-viewer_pdf 0.2.20 share PDF viewer (plugin; host=custom-digital_product) */
+/*! custom-viewer_pdf 0.2.21 share PDF viewer (plugin; host=custom-digital_product) */
 (function () {
   function badgeRank(el) {
     var id = '';
@@ -217,9 +217,25 @@
     return m ? m[1] : '';
   }
 
+  // Behind a reverse proxy (e.g. Synology) the host can build absolute URLs with the
+  // internal port (https://host:8482/api/...) while the page is served on https://host.
+  // That is cross-origin, so fetch/pdf.js fail. Same hostname → use the page's origin.
+  function sameOriginUrl(u) {
+    u = String(u || '');
+    if (!/^https?:\/\//i.test(u)) return u;
+    try {
+      var parsed = new URL(u);
+      if (parsed.origin === location.origin) return u;
+      if (parsed.hostname !== location.hostname) return u;
+      return location.origin + parsed.pathname + parsed.search + parsed.hash;
+    } catch (e) {
+      return u;
+    }
+  }
+
   function pickUrl(f) {
     if (!f || typeof f !== 'object') return '';
-    return String(f.preview_url || f.download_url || f.url || f.file_url || f.href || '');
+    return sameOriginUrl(f.preview_url || f.download_url || f.url || f.file_url || f.href || '');
   }
 
   function extOfFile(f) {
@@ -1491,7 +1507,7 @@
     var DL_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M5 21h14"/></svg>';
     function downloadCurrent() {
       var file = (state.modalFiles || [])[state.currentIdx] || {};
-      var url = String(file.download_url || pickUrl(file) || '');
+      var url = file.download_url ? sameOriginUrl(file.download_url) : pickUrl(file);
       if (!url) return;
       var a = document.createElement('a');
       a.href = url;
