@@ -1,4 +1,4 @@
-/*! custom-viewer_pdf 0.2.21 share PDF viewer (plugin; host=custom-digital_product) */
+/*! custom-viewer_pdf 0.2.22 share PDF viewer (plugin; host=custom-digital_product) */
 (function () {
   function badgeRank(el) {
     var id = '';
@@ -207,7 +207,9 @@
     state.rebuildTimer = setTimeout(function () {
       state.rebuildTimer = 0;
       if (state.disposed) return;
-      if (typeof state._rebuildStack === 'function') state._rebuildStack();
+      // Zoom: resize the existing slots in place and keep the page being read.
+      if (state.ui && state.ui.pageEls && state.ui.pageEls.length && state.pdfDoc) rescaleStack();
+      else if (typeof state._rebuildStack === 'function') state._rebuildStack();
       else if (state.pdfDoc) renderPage(state.page);
     }, 140);
   }
@@ -761,12 +763,24 @@
       var wrap = els[pageNo - 1];
       if (!wrap) return Promise.resolve();
       flags[pageNo] = 'busy';
-      markPageLoading(wrap, pageNo, total);
+      // After a zoom the old bitmap stays (stretched) until the sharp one is ready.
+      if (!wrap.querySelector('canvas')) markPageLoading(wrap, pageNo, total);
       return state.pdfDoc.getPage(pageNo).then(function (page) {
         if (!stillCurrent()) return null;
         var vp = page.getViewport({ scale: scale });
+        var base = page.getViewport({ scale: 1 });
+        wrap.setAttribute('data-base-w', String(base.width));
+        wrap.setAttribute('data-base-h', String(base.height));
+        var aboveView = false;
+        var oldH = wrap.offsetHeight;
+        try {
+          aboveView = wrap.getBoundingClientRect().bottom <= scroller.getBoundingClientRect().top + 1;
+        } catch (eAb) {}
         wrap.style.width = vp.width + 'px';
         wrap.style.height = vp.height + 'px';
+        // A page above the viewport changing size (e.g. landscape spreads vs. the page-1
+        // placeholder) must not push the page being read out of view.
+        if (aboveView) scroller.scrollTop += wrap.offsetHeight - oldH;
         var canvas = wrap.querySelector('canvas');
         if (!canvas) {
           canvas = document.createElement('canvas');
@@ -822,6 +836,58 @@
     }
   }
 
+  function slotTopIn(scroller, el) {
+    return el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+  }
+
+  // The page under the viewport center and where in it (0..1), so zoom stays on what is read.
+  function captureScrollAnchor(scroller, els) {
+    var root = scroller.getBoundingClientRect();
+    var cy = root.top + root.height / 2;
+    for (var i = 0; i < els.length; i++) {
+      var r = els[i].getBoundingClientRect();
+      if (r.bottom >= cy) {
+        var frac = r.height ? (cy - r.top) / r.height : 0;
+        return { idx: i, frac: Math.max(0, Math.min(1, frac)) };
+      }
+    }
+    return { idx: Math.max(0, (state.page || 1) - 1), frac: 0 };
+  }
+
+  function rescaleStack() {
+    var ui = state.ui;
+    if (!state.pdfDoc || !ui || !ui.scroller || !ui.pageEls || !ui.pageEls.length) return;
+    var scroller = ui.scroller;
+    var els = ui.pageEls;
+    var anchor = captureScrollAnchor(scroller, els);
+    // Cancel in-flight renders at the old scale; every slot re-renders sharp on demand.
+    state.stackGen = (state.stackGen || 0) + 1;
+    state.pageRenderFlags = {};
+    var scale = state.scale || 1.15;
+    for (var i = 0; i < els.length; i++) {
+      var wrap = els[i];
+      var bw = Number(wrap.getAttribute('data-base-w')) || state._baseW || 0;
+      var bh = Number(wrap.getAttribute('data-base-h')) || state._baseH || 0;
+      if (!bw || !bh) continue;
+      var w = Math.max(40, bw * scale);
+      var h = Math.max(40, bh * scale);
+      wrap.style.width = w + 'px';
+      wrap.style.height = h + 'px';
+      var c = wrap.querySelector('canvas');
+      if (c) {
+        c.style.width = w + 'px';
+        c.style.height = h + 'px';
+      }
+    }
+    var target = els[anchor.idx];
+    if (target) {
+      scroller.scrollTop = slotTopIn(scroller, target) + anchor.frac * target.offsetHeight - scroller.clientHeight / 2;
+      state.page = anchor.idx + 1;
+    }
+    if (ui.pageLabel) ui.pageLabel.textContent = state.page + ' / ' + state.pageCount;
+    ensurePagesRendered();
+  }
+
   function buildContinuousStack() {
     if (!state.pdfDoc || !state.ui || !state.ui.scroller) return;
     var gen = (state.stackGen = (state.stackGen || 0) + 1);
@@ -864,6 +930,9 @@
       }
       var scale = state.scale || 1.15;
       var vp1 = firstPage.getViewport({ scale: scale });
+      var base1 = firstPage.getViewport({ scale: 1 });
+      state._baseW = base1.width;
+      state._baseH = base1.height;
       var phW = Math.max(40, Math.round(vp1.width));
       var phH = Math.max(40, Math.round(vp1.height));
 
@@ -880,7 +949,7 @@
       // Jump to current page slot before rendering so the visible range is correct.
       try {
         var target = els[state.page - 1];
-        if (target && state.page > 1) target.scrollIntoView({ block: 'start' });
+        if (target && state.page > 1) scroller.scrollTop = slotTopIn(scroller, target);
       } catch (eScr) {}
       ensurePagesRendered();
     }).catch(function () {
