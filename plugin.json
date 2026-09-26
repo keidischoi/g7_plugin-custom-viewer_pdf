@@ -9,7 +9,7 @@
     "ko": "custom-digital_product 공유/상세의 PDF 미리보기 Event-Hook 플러그인. 카탈로그·주문·다운로드는 호스트 모듈이 담당합니다.",
     "en": "Thin Event-Hook plugin: PDF preview for custom-digital_product share/detail pages. Catalog, orders, and downloads stay in the host module."
   },
-  "version": "0.2.19",
+  "version": "0.2.20",
   "g7_version": ">=7.0.0",
   "license": "MIT",
   "github_url": "https://github.com/keidischoi/g7-plugin-custom-viewer_pdf",

@@ -1,4 +1,4 @@
-/*! custom-viewer_pdf 0.2.19 share PDF viewer (plugin; host=custom-digital_product) */
+/*! custom-viewer_pdf 0.2.20 share PDF viewer (plugin; host=custom-digital_product) */
 (function () {
   function badgeRank(el) {
     var id = '';
@@ -526,6 +526,9 @@
   function closeModal() {
     state.disposed = true;
     bumpRenderGens();
+    if (state.pdfDoc) {
+      try { state.pdfDoc.destroy(); } catch (eDes) {}
+    }
     state.pdfDoc = null;
     state.rendering = false;
     state.pendingPage = null;
@@ -1008,11 +1011,28 @@
     setStatus((file.file_name || 'PDF') + ' 불러오는 중…');
     state.disposed = false;
     bumpRenderGens();
+    // Only the latest openFile() may take over the stage. Without this, a slow earlier
+    // load (e.g. file 1 still downloading when file 2 is clicked) resolves last and
+    // replaces the file the user picked.
+    var seq = (state.loadSeq = (state.loadSeq || 0) + 1);
+    function isLatest() {
+      return !state.disposed && seq === state.loadSeq;
+    }
+    var prevDoc = state.pdfDoc;
+    state.pdfDoc = null;
+    if (prevDoc) {
+      try { prevDoc.destroy(); } catch (eDes) {}
+    }
+    showSwitchLoading(file.file_name || 'PDF');
     loadPdfJs().then(function (pdfjsLib) {
-      if (state.disposed) return null;
+      if (!isLatest()) return null;
       return openPdfDocument(pdfjsLib, url);
     }).then(function (doc) {
-      if (state.disposed || !doc) return;
+      if (!doc) return;
+      if (!isLatest()) {
+        try { doc.destroy(); } catch (eStale) {}
+        return;
+      }
       state.pdfDoc = doc;
       state.pageCount = doc.numPages || 1;
       state.page = 1;
@@ -1033,9 +1053,32 @@
         try { state.ui.buildPageThumbs(); } catch (eBt) {}
       }
     }).catch(function () {
+      if (!isLatest()) return;
       setStatus(file.file_name || 'PDF');
       showIframeFallback(url);
     });
+  }
+
+  // Clear the previous file's pages/thumbs right away so a file switch never keeps
+  // showing the old document while the new one is downloading.
+  function showSwitchLoading(name) {
+    var ui = state.ui;
+    if (!ui) return;
+    try {
+      var frame = ui.stage && ui.stage.querySelector('iframe[data-cdp-pdf-frame]');
+      if (frame && frame.parentNode) frame.parentNode.removeChild(frame);
+    } catch (eFr) {}
+    if (ui.scroller) {
+      ui.scroller.innerHTML = '';
+      ui.pageEls = [];
+      var tip = document.createElement('div');
+      tip.setAttribute('data-cdp-pdf-switch-loading', '1');
+      tip.textContent = String(name) + ' 불러오는 중…';
+      tip.style.cssText = 'margin:auto;padding:24px;font-size:13px;color:' + ((ui.palette && ui.palette.muted) || '#6b7280') + ';';
+      ui.scroller.appendChild(tip);
+    }
+    if (ui.pageThumbs) ui.pageThumbs.innerHTML = '';
+    if (ui.pageLabel) ui.pageLabel.textContent = '… / …';
   }
 
   function openModal(startIdx) {

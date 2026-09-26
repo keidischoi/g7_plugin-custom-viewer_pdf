@@ -67,7 +67,7 @@ expect(!fs.existsSync(path.join(__dirname, '..', 'resources/layouts/admin/plugin
 expect(!fs.existsSync(path.join(__dirname, '..', 'resources/layouts/admin/custom-viewer_pdf.plugin_settings.json')), 'extra prefixed admin JSON is not registered as a layout');
 
 var pluginJson = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'plugin.json'), 'utf8'));
-expect(pluginJson.version === '0.2.16', 'plugin.json is 0.2.16');
+expect(/^\d+\.\d+\.\d+$/.test(String(pluginJson.version || '')), 'plugin.json has a semver version');
 expect(!pluginJson.layouts, 'plugin.json does not declare a host layouts entry');
 
 var phpPlugin = fs.readFileSync(path.join(__dirname, '..', 'plugin.php'), 'utf8');
@@ -80,7 +80,7 @@ var listener = fs.readFileSync(path.join(__dirname, '..', 'src/Listeners/ViewerP
 expect(listener.indexOf('core.layout.get') === -1, 'listener does not intercept core.layout.get');
 expect(listener.indexOf('removeOrphan') === -1, 'listener does not delete the settings layout row');
 expect(listener.indexOf('SettingsLayoutRegistrar::ensure()') !== -1, 'listener upserts settings layout once');
-expect(listener.indexOf('share-pdf.js?v=0.2.16') !== -1, 'SCRIPT_SRC cache-bust is 0.2.16');
+expect(listener.indexOf('share-pdf.js?v=' + pluginJson.version + "'") !== -1, 'SCRIPT_SRC cache-bust matches plugin.json version');
 
 var php = fs.readFileSync(path.join(__dirname, '..', 'src/Support/ViewerPdfSettings.php'), 'utf8');
 expect(php.indexOf("'badge_order' => 20") !== -1, 'ViewerPdfSettings defaults include badge_order 20');
